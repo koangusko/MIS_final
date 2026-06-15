@@ -26,5 +26,5 @@ data/uploads/
 *.log
 npm-debug.log*
 
-# claude code 本機設定
-.claude/settings.local.json
+# claude code 本機工具狀態（settings.local.json、launch.json 等）
+.claude/

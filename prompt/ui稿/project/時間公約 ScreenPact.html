@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>時間公約 ScreenPact — P0 畫面 + Style Guide</title>
+<link rel="stylesheet" href="sp.css" />
+<style>
+  html, body { margin: 0; background: #e8e4db; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="sp-ui.jsx"></script>
+<script type="text/babel" src="sp-screens-auth.jsx"></script>
+<script type="text/babel" src="sp-screens-upload-room.jsx"></script>
+<script type="text/babel" src="sp-screens-create-join.jsx"></script>
+<script type="text/babel" src="sp-screens-p1p2.jsx"></script>
+
+<script type="text/babel">
+const { DesignCanvas, DCSection, DCArtboard } = window;
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="sg" title="Style Guide" subtitle="設計系統 — 色彩 · 字體 · 元件 · 圖示（含 2 個主色方向）">
+        <DCArtboard id="guide" label="系統總覽" width={760} height={760}><StyleGuide /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="s1" title="① 登入頁" subtitle="價值說明 + Google 登入">
+        <DCArtboard id="login" label="登入" width={390} height={844}><Login /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="s2" title="② 個人總覽 Dashboard" subtitle="無資料引導 / 有資料總覽">
+        <DCArtboard id="dash-empty" label="無資料（首次）" width={390} height={844}><DashboardEmpty /></DCArtboard>
+        <DCArtboard id="dash-data" label="有資料" width={390} height={1024}><DashboardData /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="s3" title="③ 每日上傳回報" subtitle="空 / 解析中 / 成功 / 失敗重傳">
+        <DCArtboard id="up-empty" label="空" width={390} height={844}><UploadEmpty /></DCArtboard>
+        <DCArtboard id="up-parsing" label="解析中" width={390} height={844}><UploadParsing /></DCArtboard>
+        <DCArtboard id="up-success" label="成功確認" width={390} height={816}><UploadSuccess /></DCArtboard>
+        <DCArtboard id="up-fail" label="失敗重傳" width={390} height={760}><UploadFail /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="s4" title="④ 房間詳情" subtitle="成員 / 規則 / 排行 / 聊天">
+        <DCArtboard id="room-member" label="成員" width={390} height={912}><RoomMembers /></DCArtboard>
+        <DCArtboard id="room-rule" label="規則" width={390} height={940}><RoomRules /></DCArtboard>
+        <DCArtboard id="room-rank" label="排行" width={390} height={912}><RoomRank /></DCArtboard>
+        <DCArtboard id="room-chat" label="聊天" width={390} height={912}><RoomChat /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="s5" title="⑤ 建立房間 + 邀請成功" subtitle="表單 / QR + 連結成功頁">
+        <DCArtboard id="create" label="建立房間" width={390} height={960}><CreateRoom /></DCArtboard>
+        <DCArtboard id="invite" label="邀請成功" width={390} height={912}><InviteSuccess /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="s6" title="⑥ 加入房間預覽" subtitle="連結有效 / 連結已失效">
+        <DCArtboard id="join-valid" label="連結有效" width={390} height={912}><JoinValid /></DCArtboard>
+        <DCArtboard id="join-expired" label="連結已失效" width={390} height={844}><JoinExpired /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="s7" title="⑦ 追蹤 App 設定（房主）" subtitle="P1 · 分組勾選 + 儲存將於聊天室公告">
+        <DCArtboard id="tracking" label="追蹤清單" width={390} height={960}><TrackingSettings /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="s8" title="⑧ 規則與投票" subtitle="P1 · 目前規則 + 發起提案 + 進行中提案">
+        <DCArtboard id="vote" label="規則與投票" width={390} height={1000}><RulesVote /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="s9" title="⑨ 房間聊天室" subtitle="P1 · 聊天泡泡 + 系統公告卡 + 輸入框">
+        <DCArtboard id="chatfull" label="聊天室" width={390} height={912}><RoomChatFull /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="s10" title="⑩ 結算結果" subtitle="P1 · 達標/超標 + 懲罰 + 排行 + 公告">
+        <DCArtboard id="settlement" label="結算結果" width={390} height={1040}><Settlement /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="s11" title="⑪ 設定 / LINE 綁定" subtitle="P2 · 綁定碼 + 引導加 LINE bot">
+        <DCArtboard id="settings" label="設定 / LINE" width={390} height={900}><SettingsLine /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="s12" title="⑫ 通知中心" subtitle="P2 · 回報提醒 / 結算 / 超標 / 投票 / 公告">
+        <DCArtboard id="notif" label="通知中心" width={390} height={912}><Notifications /></DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
