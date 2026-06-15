@@ -10,7 +10,8 @@ services:
       # 容器內固定連 db 服務（覆蓋 .env 的本機 DATABASE_URL）
       DATABASE_URL: postgresql://${POSTGRES_USER:-screenpact}:${POSTGRES_PASSWORD:-screenpact}@db:5432/${POSTGRES_DB:-screenpact}
     ports:
-      - "8080:8080"
+      # 只綁本機；對外由 host nginx 反代（正式環境安全做法）
+      - "127.0.0.1:8080:8080"
     depends_on:
       db:
         condition: service_healthy
