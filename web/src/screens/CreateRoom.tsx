@@ -6,10 +6,10 @@ import { api } from '../lib/api';
 
 export default function CreateRoom() {
   const nav = useNavigate();
-  const [name, setName] = useState('沉澱小隊');
+  const [name, setName] = useState('');
   const [cycle, setCycle] = useState<'DAILY' | 'WEEKLY'>('DAILY');
   const [deadline, setDeadline] = useState('23:00');
-  const [desc, setDesc] = useState('下班後一起少滑一點，互相督促 💪');
+  const [desc, setDesc] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,7 +32,7 @@ export default function CreateRoom() {
       <div className="wrap scroll-body">
         <div className="field">
           <label>房間名稱</label>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+          <input className="input" placeholder="請輸入房間名稱" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
 
         <div className="field">
@@ -55,7 +55,7 @@ export default function CreateRoom() {
 
         <div className="field">
           <label>房間說明（選填）</label>
-          <textarea className="input" rows={3} value={desc} onChange={(e) => setDesc(e.target.value)} />
+          <textarea className="input" rows={3} placeholder="例：下班後一起少滑一點，互相督促 💪" value={desc} onChange={(e) => setDesc(e.target.value)} />
         </div>
 
         <div className="card flat" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14, marginTop: 4 }}>
