@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { Phone, Avatar, AppIcon, Chip } from '../components/ui';
@@ -11,6 +11,7 @@ type Tracked = { key: string; name: string; glyph: string; color: string; catego
 type Room = {
   id: string; name: string; description: string | null;
   cycle: 'DAILY' | 'WEEKLY'; reportDeadline: string; role: 'OWNER' | 'MEMBER';
+  totalCapMin: number | null; penaltyText: string | null;
   members: Member[]; trackedApps: Tracked[];
 };
 
@@ -25,9 +26,11 @@ export default function RoomDetail() {
   const [room, setRoom] = useState<Room | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => {
-    api.get<Room>(`/api/rooms/${id}`).then(setRoom).catch((e: ApiError) => setErr(e.status === 403 ? '你不是這個房間的成員' : '找不到這個房間'));
-  }, [id]);
+  const load = useCallback(
+    () => api.get<Room>(`/api/rooms/${id}`).then(setRoom).catch((e: ApiError) => setErr(e.status === 403 ? '你不是這個房間的成員' : '找不到這個房間')),
+    [id],
+  );
+  useEffect(() => { void load(); }, [load]);
 
   if (err) {
     return (
@@ -62,7 +65,7 @@ export default function RoomDetail() {
       </div>
       <div className="wrap" style={{ padding: '4px 16px 22px' }}>
         {tab === 'member' && <Members room={room} isOwner={isOwner} onInvite={() => nav(`/rooms/${room.id}/invite`)} />}
-        {tab === 'rule' && <Rules room={room} isOwner={isOwner} onEdit={() => nav(`/rooms/${room.id}/tracking`)} />}
+        {tab === 'rule' && <Rules room={room} isOwner={isOwner} onEditTracking={() => nav(`/rooms/${room.id}/tracking`)} onSettlement={() => nav(`/rooms/${room.id}/settlement`)} reload={load} />}
         {tab === 'chat' && <Placeholder icon="room" title="房間聊天室即將推出" desc="成員聊天與系統公告會在 Phase 6 上線。" />}
       </div>
     </Phone>
@@ -94,10 +97,61 @@ function Members({ room, isOwner, onInvite }: { room: Room; isOwner: boolean; on
   );
 }
 
-function Rules({ room, isOwner, onEdit }: { room: Room; isOwner: boolean; onEdit: () => void }) {
+function Rules({ room, isOwner, onEditTracking, onSettlement, reload }: {
+  room: Room; isOwner: boolean; onEditTracking: () => void; onSettlement: () => void; reload: () => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [cap, setCap] = useState(room.totalCapMin ? String(room.totalCapMin) : '');
+  const [penalty, setPenalty] = useState(room.penaltyText ?? '');
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    setBusy(true);
+    try {
+      await api.put(`/api/rooms/${room.id}/rules`, { totalCapMin: cap ? Number(cap) : null, penaltyText: penalty });
+      await reload();
+      setEditing(false);
+    } catch { /* ignore */ } finally { setBusy(false); }
+  };
+
   return (
     <>
+      {/* 上限 + 懲罰 */}
       <div className="card" style={{ padding: 16 }}>
+        <div className="between" style={{ marginBottom: 10 }}>
+          <span style={{ fontWeight: 700, fontSize: 15 }}>每{room.cycle === 'WEEKLY' ? '週' : '日'}總上限與懲罰</span>
+          {isOwner && !editing && <button className="btn ghost sm" style={{ padding: '6px 12px' }} onClick={() => setEditing(true)}><Icon name="edit" size={15} />編輯</button>}
+        </div>
+        {editing ? (
+          <>
+            <div className="field" style={{ marginBottom: 12 }}>
+              <label>追蹤 App 合計上限（分）</label>
+              <input className="input" inputMode="numeric" placeholder="例：90" value={cap} onChange={(e) => setCap(e.target.value.replace(/[^0-9]/g, ''))} />
+            </div>
+            <div className="field" style={{ marginBottom: 12 }}>
+              <label>超標懲罰（自訂文字）</label>
+              <textarea className="input" rows={2} placeholder="例：超標者請室友喝一杯飲料 🧋" value={penalty} onChange={(e) => setPenalty(e.target.value)} />
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn ghost sm block" onClick={() => setEditing(false)}>取消</button>
+              <button className="btn primary sm block" disabled={busy} onClick={save}><Icon name="check" size={16} sw={2.2} />{busy ? '儲存中…' : '儲存'}</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="between" style={{ padding: '4px 0' }}>
+              <span className="row" style={{ gap: 10, color: 'var(--ink-2)', fontSize: 14 }}><Icon name="chart" size={19} />合計上限</span>
+              <span className="tnum" style={{ fontWeight: 700, fontSize: 14 }}>{room.totalCapMin ? `${room.totalCapMin} 分` : '未設定'}</span>
+            </div>
+            <div style={{ paddingTop: 10, marginTop: 6, borderTop: '1px solid var(--line-2)' }}>
+              <div className="row" style={{ gap: 8, color: 'var(--warn-ink)', fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}><Icon name="flame" size={17} />超標懲罰</div>
+              <div style={{ fontSize: 13, color: room.penaltyText ? 'var(--ink)' : 'var(--ink-3)', lineHeight: 1.5 }}>{room.penaltyText || '尚未設定懲罰'}</div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* 追蹤清單 */}
+      <div className="card" style={{ marginTop: 12, padding: 16 }}>
         <div className="between" style={{ marginBottom: 4 }}>
           <span style={{ fontWeight: 700, fontSize: 15 }}>追蹤的 App</span>
           {isOwner && <Chip kind="accent"><Icon name="crown" size={13} />房主可編輯</Chip>}
@@ -106,14 +160,12 @@ function Rules({ room, isOwner, onEdit }: { room: Room; isOwner: boolean; onEdit
         {room.trackedApps.map((a) => (
           <div className="approw" key={a.key}>
             <AppIcon glyph={a.glyph as IconName} color={a.color} />
-            <div className="meta between" style={{ display: 'flex' }}>
-              <span className="nm">{a.name}</span>
-              <span className="mins tnum">{a.dailyCapMin ? `${a.dailyCapMin} 分` : '未設上限'}</span>
-            </div>
+            <div className="meta"><span className="nm">{a.name}</span></div>
           </div>
         ))}
       </div>
 
+      {/* 週期 */}
       <div className="card" style={{ marginTop: 12 }}>
         {[{ ic: 'calendar' as const, t: '結算週期', v: room.cycle === 'WEEKLY' ? '每週' : '每日' }, { ic: 'clock' as const, t: '回報截止', v: `每天 ${room.reportDeadline}` }].map((r, i) => (
           <div key={i} className="between" style={{ padding: '11px 0', borderTop: i ? '1px solid var(--line-2)' : 'none' }}>
@@ -123,14 +175,8 @@ function Rules({ room, isOwner, onEdit }: { room: Room; isOwner: boolean; onEdit
         ))}
       </div>
 
-      <div className="card flat" style={{ marginTop: 12, display: 'flex', gap: 10, padding: 14, fontSize: 12.5, color: 'var(--ink-2)' }}>
-        <Icon name="flame" size={18} style={{ color: 'var(--ink-3)', flexShrink: 0 }} />
-        <span>上限與超標懲罰、投票於 <b style={{ color: 'var(--ink)' }}>Phase 5</b> 上線。</span>
-      </div>
-
-      {isOwner && (
-        <button className="btn ghost" style={{ marginTop: 14 }} onClick={onEdit}><Icon name="edit" size={17} />編輯追蹤清單</button>
-      )}
+      <button className="btn soft" style={{ marginTop: 14 }} onClick={onSettlement}><Icon name="trophy" size={18} />看本期結算結果</button>
+      {isOwner && <button className="btn ghost" style={{ marginTop: 10 }} onClick={onEditTracking}><Icon name="edit" size={17} />編輯追蹤清單</button>}
     </>
   );
 }

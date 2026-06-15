@@ -6,6 +6,7 @@ import { setupAuth } from './auth';
 import { api } from './routes';
 import { rooms } from './rooms';
 import { seedCatalog } from './catalog';
+import { startCron } from './cron';
 
 const app = express();
 app.use(express.json());
@@ -43,6 +44,9 @@ if (fs.existsSync(webDist)) {
 
 // 啟動時 seed App 目錄（idempotent）
 seedCatalog().catch((e) => console.error('[server] seedCatalog failed', e));
+
+// 定時結算排程
+startCron();
 
 app.listen(env.PORT, () => {
   console.log(`[server] listening on http://localhost:${env.PORT}`);

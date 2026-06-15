@@ -31,3 +31,13 @@ export function lastNDaysTaipei(n: number): string[] {
   }
   return out;
 }
+
+/** 現在台北時間 HH:MM。 */
+export function nowTaipeiHHMM(): string {
+  return new Date(Date.now() + TAIPEI_OFFSET_MS).toISOString().slice(11, 16);
+}
+
+/** 台北星期（0=日 .. 6=六）。 */
+export function taipeiDow(dateStr: string): number {
+  return new Date(`${dateStr}T00:00:00+08:00`).getDay();
+}

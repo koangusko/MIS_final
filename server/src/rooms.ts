@@ -153,6 +153,8 @@ rooms.get('/rooms/:id', requireAuth, async (req, res) => {
     description: room.description,
     cycle: room.cycle,
     reportDeadline: room.reportDeadline,
+    totalCapMin: room.totalCapMin,
+    penaltyText: room.penaltyText,
     role: myMember.role,
     members: room.members.map((m, i) => ({
       id: m.userId,
@@ -231,4 +233,67 @@ rooms.put('/rooms/:id/tracked-apps', requireAuth, async (req, res) => {
     }),
   ]);
   res.json({ ok: true, count: keys.length });
+});
+
+// ── 設定規則：總上限 + 懲罰文字（房主）──
+rooms.put('/rooms/:id/rules', requireAuth, async (req, res) => {
+  const room = await prisma.room.findUnique({ where: { id: req.params.id }, include: { members: true } });
+  if (!room) {
+    res.status(404).json({ error: 'not_found' });
+    return;
+  }
+  if (!room.members.some((m) => m.userId === uid(req) && m.role === 'OWNER')) {
+    res.status(403).json({ error: 'not_owner' });
+    return;
+  }
+  const { totalCapMin, penaltyText } = req.body ?? {};
+  await prisma.room.update({
+    where: { id: room.id },
+    data: {
+      totalCapMin: typeof totalCapMin === 'number' && totalCapMin > 0 ? Math.round(totalCapMin) : null,
+      penaltyText: typeof penaltyText === 'string' ? penaltyText.trim() || null : null,
+    },
+  });
+  res.json({ ok: true });
+});
+
+// ── 最近一期結算結果 ──
+rooms.get('/rooms/:id/settlement', requireAuth, async (req, res) => {
+  const room = await prisma.room.findUnique({ where: { id: req.params.id }, include: { members: true } });
+  if (!room || !room.members.some((m) => m.userId === uid(req))) {
+    res.status(room ? 403 : 404).json({ error: room ? 'not_a_member' : 'not_found' });
+    return;
+  }
+  const latest = await prisma.settlementResult.findFirst({ where: { roomId: room.id }, orderBy: { periodStart: 'desc' } });
+  if (!latest) {
+    res.json({ hasResult: false });
+    return;
+  }
+  const rows = await prisma.settlementResult.findMany({
+    where: { roomId: room.id, periodStart: latest.periodStart },
+    include: { user: true },
+    orderBy: [{ passed: 'desc' }, { totalMin: 'asc' }],
+  });
+  const passedCount = rows.filter((r) => r.passed).length;
+  const overRows = rows.filter((r) => !r.passed);
+  const avg = rows.length ? Math.round(rows.reduce((s, r) => s + r.totalMin, 0) / rows.length) : 0;
+  res.json({
+    hasResult: true,
+    period: { start: latest.periodStart, end: latest.periodEnd },
+    cycle: room.cycle,
+    capMin: latest.capMin,
+    summary: { passed: passedCount, failed: overRows.length, avg, total: rows.length },
+    members: rows.map((r, i) => ({
+      userId: r.userId,
+      name: r.user.name,
+      initial: r.user.name.slice(0, 1),
+      isMe: r.userId === uid(req),
+      rank: i + 1,
+      totalMin: r.totalMin,
+      overMin: r.overMin,
+      passed: r.passed,
+      reported: !(r.overMin === 0 && !r.passed), // over=0 且未過 → 未回報
+      penaltyText: r.penaltyText,
+    })),
+  });
 });

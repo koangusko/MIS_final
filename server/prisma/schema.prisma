@@ -85,6 +85,9 @@ model Room {
   description        String?
   cycle              Cycle     @default(DAILY)
   reportDeadline     String    @default("23:00") // HH:mm (Asia/Taipei)
+  totalCapMin        Int? // 追蹤 App 合計每期上限（分）；null = 未設定
+  penaltyText        String? // 超標懲罰（自訂文字）
+  lastSettledPeriod  String? // 最近已結算的期別鍵（避免重複結算）
   ownerId            String
   joinToken          String?   @unique
   joinTokenExpiresAt DateTime?
