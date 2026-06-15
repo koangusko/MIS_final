@@ -1,0 +1,30 @@
+# dependencies
+node_modules/
+**/node_modules/
+
+# build output
+dist/
+**/dist/
+
+# env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+.cloudflared/
+
+# prisma local sqlite (若有)
+/server/prisma/*.db
+/server/prisma/*.db-journal
+
+# uploaded screenshots (含個資，勿入庫)
+uploads/
+data/uploads/
+
+# misc
+.DS_Store
+*.log
+npm-debug.log*
+
+# claude code 本機設定
+.claude/settings.local.json

@@ -1,0 +1,13 @@
+// Prisma schema
+// 完整資料模型（User / Room / RoomMember / AppCatalog / TrackedApp /
+// Rule / Proposal / Vote / Submission / ExtractedUsage / SettlementResult /
+// ChatMessage）將於 Phase 2 定義並建立首個 migration。
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
