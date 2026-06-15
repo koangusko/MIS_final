@@ -75,9 +75,9 @@ chat.post('/line/webhook', async (req, res) => {
     const user = code ? await prisma.user.findUnique({ where: { lineBindingCode: code } }) : null;
     if (user && lineUserId) {
       await prisma.user.update({ where: { id: user.id }, data: { lineUserId, lineBindingCode: null } });
-      if (ev.replyToken) await lineReply(ev.replyToken, `綁定成功！${user.name} 之後會在這裡收到房間通知 🎉`);
+      if (ev.replyToken) await lineReply(ev.replyToken, `綁定成功！${user.name} 之後會在這裡收到房間通知。`);
     } else if (ev.replyToken) {
-      await lineReply(ev.replyToken, '請從 App 的「我的」頁取得綁定碼，傳給我即可完成綁定 🙏');
+      await lineReply(ev.replyToken, '請從 App 的「我的」頁取得綁定碼，傳給我即可完成綁定。');
     }
   }
   res.status(200).end();

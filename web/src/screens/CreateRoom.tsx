@@ -55,7 +55,7 @@ export default function CreateRoom() {
 
         <div className="field">
           <label>房間說明（選填）</label>
-          <textarea className="input" rows={3} placeholder="例：下班後一起少滑一點，互相督促 💪" value={desc} onChange={(e) => setDesc(e.target.value)} />
+          <textarea className="input" rows={3} placeholder="例：下班後一起少滑一點，互相督促" value={desc} onChange={(e) => setDesc(e.target.value)} />
         </div>
 
         <div className="card flat" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14, marginTop: 4 }}>

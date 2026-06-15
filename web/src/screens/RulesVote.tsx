@@ -73,7 +73,7 @@ export default function RulesVote() {
             ) : (
               <div className="field" style={{ marginBottom: 12 }}>
                 <label>新的懲罰文字</label>
-                <textarea className="input" rows={2} placeholder="例：超標者請喝手搖 🧋" value={penalty} onChange={(e) => setPenalty(e.target.value)} />
+                <textarea className="input" rows={2} placeholder="例：超標者請喝手搖" value={penalty} onChange={(e) => setPenalty(e.target.value)} />
               </div>
             )}
             <div style={{ display: 'flex', gap: 10 }}>
@@ -107,8 +107,8 @@ export default function RulesVote() {
               <Bar pct={pct} state={p.status === 'PASSED' ? 'good' : ''} />
               {open && (
                 <div style={{ display: 'flex', gap: 10, marginTop: 13 }}>
-                  <button className={'btn sm block ' + (p.myVote === 'reject' ? 'warn' : 'outline')} onClick={() => vote(p.id, false)}>反對{p.myVote === 'reject' && ' ✓'}</button>
-                  <button className={'btn sm block ' + (p.myVote === 'approve' ? 'primary' : 'soft')} onClick={() => vote(p.id, true)}>贊成{p.myVote === 'approve' && ' ✓'}</button>
+                  <button className={'btn sm block ' + (p.myVote === 'reject' ? 'warn' : 'outline')} onClick={() => vote(p.id, false)}>{p.myVote === 'reject' ? '已反對' : '反對'}</button>
+                  <button className={'btn sm block ' + (p.myVote === 'approve' ? 'primary' : 'soft')} onClick={() => vote(p.id, true)}>{p.myVote === 'approve' ? '已贊成' : '贊成'}</button>
                 </div>
               )}
             </div>

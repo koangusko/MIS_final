@@ -62,7 +62,7 @@ function DashboardEmpty({ rooms }: { rooms: Room[] | null }) {
     <>
       <div className="appbar">
         <div>
-          <h1>嗨，{user?.name ?? '朋友'} 👋</h1>
+          <h1>嗨，{user?.name ?? '朋友'}</h1>
           <div className="sub">今天還沒有資料，先上傳第一張吧</div>
         </div>
         <button className="iconbtn" onClick={() => nav('/notifications')}><Icon name="bell" size={20} /></button>

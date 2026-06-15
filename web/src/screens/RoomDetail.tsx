@@ -132,7 +132,7 @@ function Rules({ room, isOwner, onEditTracking, onSettlement, onVote, reload }: 
             </div>
             <div className="field" style={{ marginBottom: 12 }}>
               <label>超標懲罰（自訂文字）</label>
-              <textarea className="input" rows={2} placeholder="例：超標者請室友喝一杯飲料 🧋" value={penalty} onChange={(e) => setPenalty(e.target.value)} />
+              <textarea className="input" rows={2} placeholder="例：超標者請室友喝一杯飲料" value={penalty} onChange={(e) => setPenalty(e.target.value)} />
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button className="btn ghost sm block" onClick={() => setEditing(false)}>取消</button>

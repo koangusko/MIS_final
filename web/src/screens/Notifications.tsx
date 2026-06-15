@@ -9,7 +9,7 @@ const GROUPS: { label: string; items: Item[] }[] = [
   {
     label: '今天', items: [
       { ic: 'clock', tone: 'warn', t: '今天還沒回報', d: '距「沉澱小隊」截止剩 4 小時', time: '18:02', unread: true },
-      { ic: 'trophy', tone: 'good', t: '本期結算完成', d: '沉澱小隊 · 你排第 3，達標 👍', time: '09:00', unread: true },
+      { ic: 'trophy', tone: 'good', t: '本期結算完成', d: '沉澱小隊 · 你排第 3，達標', time: '09:00', unread: true },
       { ic: 'alert', tone: 'warn', t: '晴晴 超標了', d: '下班不滑挑戰 · 超出 14 分', time: '08:30' },
     ],
   },

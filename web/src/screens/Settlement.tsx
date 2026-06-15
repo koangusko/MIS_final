@@ -53,7 +53,7 @@ export default function Settlement() {
         <div className="card" style={{ textAlign: 'center', padding: '22px 20px', background: 'var(--accent)', color: '#fff', boxShadow: '0 8px 22px rgba(63,128,122,.28)' }}>
           <div style={{ fontSize: 13, opacity: 0.85 }}>本期結果</div>
           <div style={{ fontWeight: 900, fontSize: 22, margin: '6px 0 16px' }}>
-            {s.failed === 0 ? `全員守住了 🎉` : `${s.passed} 人守住，${s.failed} 人超標`}
+            {s.failed === 0 ? `全員守住了` : `${s.passed} 人守住，${s.failed} 人超標`}
           </div>
           <div className="row" style={{ justifyContent: 'center', gap: 0 }}>
             <div style={{ flex: 1 }}><div className="bignum" style={{ fontSize: 32 }}>{s.passed}</div><div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>達標</div></div>
