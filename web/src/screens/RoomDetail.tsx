@@ -136,11 +136,13 @@ function Rules({ room, isOwner, onEditTracking, onSettlement, onVote, reload }: 
   const [editing, setEditing] = useState(false);
   const [cap, setCap] = useState(room.totalCapMin ? String(room.totalCapMin) : '');
   const [penalty, setPenalty] = useState(room.penaltyText ?? '');
+  const [deadline, setDeadline] = useState(room.reportDeadline);
+  const [cycle, setCycle] = useState<'DAILY' | 'WEEKLY'>(room.cycle);
   const [busy, setBusy] = useState(false);
   const save = async () => {
     setBusy(true);
     try {
-      await api.put(`/api/rooms/${room.id}/rules`, { totalCapMin: cap ? Number(cap) : null, penaltyText: penalty });
+      await api.put(`/api/rooms/${room.id}/rules`, { totalCapMin: cap ? Number(cap) : null, penaltyText: penalty, reportDeadline: deadline, cycle });
       await reload();
       setEditing(false);
     } catch { /* ignore */ } finally { setBusy(false); }
@@ -163,6 +165,20 @@ function Rules({ room, isOwner, onEditTracking, onSettlement, onVote, reload }: 
             <div className="field" style={{ marginBottom: 12 }}>
               <label>超標懲罰（自訂文字）</label>
               <textarea className="input" rows={2} placeholder="例：超標者請室友喝一杯飲料" value={penalty} onChange={(e) => setPenalty(e.target.value)} />
+            </div>
+            <div className="field" style={{ marginBottom: 12 }}>
+              <label>結算週期</label>
+              <div className="seg" style={{ display: 'flex', width: '100%' }}>
+                <button className={cycle === 'DAILY' ? 'on' : ''} style={{ flex: 1 }} onClick={() => setCycle('DAILY')}>每日</button>
+                <button className={cycle === 'WEEKLY' ? 'on' : ''} style={{ flex: 1 }} onClick={() => setCycle('WEEKLY')}>每週</button>
+              </div>
+            </div>
+            <div className="field" style={{ marginBottom: 12 }}>
+              <label>回報截止時間</label>
+              <div className="input between" style={{ display: 'flex', alignItems: 'center' }}>
+                <span className="row" style={{ gap: 10, color: 'var(--ink-2)' }}><Icon name="clock" size={19} /></span>
+                <input type="time" value={deadline} onChange={(e) => setDeadline(e.target.value)} style={{ border: 'none', background: 'transparent', font: 'inherit', color: 'var(--ink)', fontWeight: 700, flex: 1, textAlign: 'right' }} />
+              </div>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button className="btn ghost sm block" onClick={() => setEditing(false)}>取消</button>

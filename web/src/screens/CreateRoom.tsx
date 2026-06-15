@@ -62,9 +62,8 @@ export default function CreateRoom() {
           <span className="center" style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--accent-soft)', color: 'var(--accent)', flex: '0 0 auto' }}><Icon name="chart" size={20} /></span>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: 14 }}>追蹤清單與上限</div>
-            <div style={{ fontSize: 12, color: 'var(--ink-2)' }}>建立後可設定（預設：社群＋短影音）</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-2)' }}>建立後在房間「規則」設定（預設：社群＋短影音）</div>
           </div>
-          <Icon name="chevR" size={18} style={{ color: 'var(--ink-3)' }} />
         </div>
 
         {error && (

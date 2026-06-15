@@ -153,9 +153,29 @@ function Select({ yFile, tFile, setY, setT, error, onSubmit, status }: {
       <button className="btn primary" style={{ marginTop: 20 }} disabled={!any} onClick={onSubmit}>
         {any ? '上傳並解析' : '請先選擇截圖'}
       </button>
-      <div style={{ textAlign: 'center', fontSize: 11.5, color: 'var(--ink-3)', marginTop: 12, lineHeight: 1.5 }}>
-        截「設定 → 螢幕使用時間」整頁，數字清楚別被遮住。
-      </div>
+      <Guide />
+    </div>
+  );
+}
+
+function Guide() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="card flat" style={{ marginTop: 14, padding: 14 }}>
+      <button onClick={() => setOpen(!open)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', color: 'var(--ink)' }}>
+        <span className="row" style={{ gap: 8, fontWeight: 700, fontSize: 13.5 }}><Icon name="info" size={16} />如何截圖？</span>
+        <Icon name={open ? 'chevD' : 'chevR'} size={16} style={{ color: 'var(--ink-3)' }} />
+      </button>
+      {open && (
+        <div style={{ marginTop: 12, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.7 }}>
+          <div style={{ fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>iOS</div>
+          設定 → 螢幕使用時間 →「查看所有 App 與網站活動」→ 截整頁。<br />
+          要補「昨天」的話，把頁面上方日期切到前一天再截。
+          <div style={{ fontWeight: 700, color: 'var(--ink)', margin: '10px 0 2px' }}>Android</div>
+          各家介面不同（多在「設定 → 數位健康與家長監護」），自己加油找一下；
+          截圖請務必包含<b>使用時間最多的 App 時數</b>與<b>總使用時間</b>。
+        </div>
+      )}
     </div>
   );
 }

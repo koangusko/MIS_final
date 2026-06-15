@@ -221,6 +221,7 @@ rooms.get('/rooms/:id/usage', requireAuth, async (req, res) => {
     return;
   }
   const trackedNames = new Set(room.trackedApps.map((t) => normAppName(t.app.name)));
+  const trackedKeys = new Set(room.trackedApps.map((t) => t.app.key));
   // 本期日期：每日=今天;每週=本週一到今天
   let dates: string[];
   if (room.cycle === 'WEEKLY') {
@@ -232,7 +233,7 @@ rooms.get('/rooms/:id/usage', requireAuth, async (req, res) => {
   const members = [];
   for (let i = 0; i < room.members.length; i++) {
     const m = room.members[i];
-    const used = await memberUsage(m.userId, trackedNames, dates);
+    const used = await memberUsage(m.userId, trackedKeys, trackedNames, dates);
     members.push({
       userId: m.userId,
       name: m.user.name,
@@ -289,15 +290,15 @@ rooms.put('/rooms/:id/rules', requireAuth, async (req, res) => {
     res.status(403).json({ error: 'not_owner' });
     return;
   }
-  const { totalCapMin, penaltyText } = req.body ?? {};
-  await prisma.room.update({
-    where: { id: room.id },
-    data: {
-      totalCapMin: typeof totalCapMin === 'number' && totalCapMin > 0 ? Math.round(totalCapMin) : null,
-      penaltyText: typeof penaltyText === 'string' ? penaltyText.trim() || null : null,
-    },
-  });
-  await announce(room.id, '房間規則已更新（合計上限／懲罰）。');
+  const { totalCapMin, penaltyText, reportDeadline, cycle } = req.body ?? {};
+  const data: { totalCapMin: number | null; penaltyText: string | null; reportDeadline?: string; cycle?: Cycle } = {
+    totalCapMin: typeof totalCapMin === 'number' && totalCapMin > 0 ? Math.round(totalCapMin) : null,
+    penaltyText: typeof penaltyText === 'string' ? penaltyText.trim() || null : null,
+  };
+  if (typeof reportDeadline === 'string' && /^\d{1,2}:\d{2}$/.test(reportDeadline)) data.reportDeadline = reportDeadline;
+  if (cycle === 'DAILY' || cycle === 'WEEKLY') data.cycle = cycle;
+  await prisma.room.update({ where: { id: room.id }, data });
+  await announce(room.id, '房間規則已更新（上限／懲罰／週期／截止）。');
   res.json({ ok: true });
 });
 

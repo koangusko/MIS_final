@@ -4,16 +4,6 @@ import { Icon } from '../components/Icon';
 import { Phone, TabBar, Avatar, Chip } from '../components/ui';
 import { useAuth, logout } from '../lib/auth';
 import { api } from '../lib/api';
-import type { IconName } from '../lib/icons';
-
-function Row({ ic, t, v, last }: { ic: IconName; t: string; v?: string; last?: boolean }) {
-  return (
-    <div className="between" style={{ padding: '13px 0', borderTop: last ? '1px solid var(--line-2)' : 'none' }}>
-      <span className="row" style={{ gap: 12, fontSize: 14.5 }}><span style={{ color: 'var(--ink-2)' }}><Icon name={ic} size={20} /></span>{t}</span>
-      <span className="row" style={{ gap: 6, color: 'var(--ink-3)', fontSize: 13 }}>{v}<Icon name="chevR" size={16} /></span>
-    </div>
-  );
-}
 
 type Binding = { bound: boolean; code?: string; addFriendUrl?: string };
 
@@ -79,11 +69,9 @@ export default function Settings() {
           {bound && <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 12 }}>已連結 LINE，房間通知會推播給你。</div>}
         </div>
 
-        <div className="sectlabel">一般</div>
-        <div className="card" style={{ padding: '4px 16px' }}>
-          <Row ic="bell" t="通知設定" v="開啟" />
-          <Row ic="lock" t="隱私與資料" last />
-          <Row ic="info" t="關於 ScreenPact" v="v1.0" last />
+        <div className="card flat" style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px' }}>
+          <span className="row" style={{ gap: 10, fontSize: 14, color: 'var(--ink-2)' }}><Icon name="info" size={18} />關於 ScreenPact</span>
+          <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>v1.0</span>
         </div>
         <button className="btn outline" style={{ marginTop: 16, color: 'var(--warn-ink)', borderColor: 'var(--warn-soft)' }} onClick={onLogout}>登出</button>
       </div>

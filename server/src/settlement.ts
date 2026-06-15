@@ -1,12 +1,14 @@
 import { prisma } from './prisma';
 import { taipeiDayStartUtc } from './time';
 import { announce } from './announce';
+import { matchAppKey } from './catalog';
 
 export const normAppName = (s: string) => s.toLowerCase().replace(/\s+/g, '');
 const norm = normAppName;
 
 // 某成員在指定日期清單內、追蹤 App 的合計用量；完全沒回報則回 null。
-export async function memberUsage(userId: string, trackedNames: Set<string>, dates: string[]): Promise<number | null> {
+// 比對：先用別名解析成 key 比對追蹤 key，再以名稱完全相等做後備。
+export async function memberUsage(userId: string, trackedKeys: Set<string>, trackedNames: Set<string>, dates: string[]): Promise<number | null> {
   let total = 0;
   let reported = false;
   for (const d of dates) {
@@ -17,7 +19,10 @@ export async function memberUsage(userId: string, trackedNames: Set<string>, dat
     });
     if (!sub) continue;
     reported = true;
-    for (const u of sub.usages) if (trackedNames.has(norm(u.appLabel))) total += u.minutes;
+    for (const u of sub.usages) {
+      const key = matchAppKey(u.appLabel);
+      if ((key && trackedKeys.has(key)) || trackedNames.has(norm(u.appLabel))) total += u.minutes;
+    }
   }
   return reported ? total : null;
 }
@@ -39,11 +44,12 @@ export async function settleRoom(
   if (!room || room.totalCapMin == null) return null; // 沒設上限不結算
   const cap = room.totalCapMin;
   const trackedNames = new Set(room.trackedApps.map((t) => norm(t.app.name)));
+  const trackedKeys = new Set(room.trackedApps.map((t) => t.app.key));
 
   const out: MemberSettlement[] = [];
   const failedNames: string[] = [];
   for (const m of room.members) {
-    const usage = await memberUsage(m.userId, trackedNames, dates);
+    const usage = await memberUsage(m.userId, trackedKeys, trackedNames, dates);
     const reported = usage != null;
     const used = usage ?? 0;
     const passed = reported && used <= cap;
