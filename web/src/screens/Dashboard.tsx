@@ -1,14 +1,16 @@
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { Phone, TabBar, AppIcon, Bar, Chip, APPS } from '../components/ui';
+import { useAuth } from '../lib/auth';
 
 function DashboardEmpty() {
   const nav = useNavigate();
+  const { user } = useAuth();
   return (
     <>
       <div className="appbar">
         <div>
-          <h1>嗨，宥宥 👋</h1>
+          <h1>嗨，{user?.name ?? '朋友'} 👋</h1>
           <div className="sub">今天還沒有資料，先上傳第一張吧</div>
         </div>
         <button className="iconbtn" onClick={() => nav('/notifications')}><Icon name="bell" size={20} /></button>

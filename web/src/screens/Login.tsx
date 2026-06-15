@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { Phone } from '../components/ui';
 import type { IconName } from '../lib/icons';
@@ -10,7 +9,10 @@ const SELLS: { icon: IconName; t: string; d: string }[] = [
 ];
 
 export default function Login() {
-  const nav = useNavigate();
+  // 導去後端開始 Google OAuth（整頁跳轉，非 fetch）
+  const signIn = () => {
+    window.location.href = '/api/auth/google';
+  };
   return (
     <Phone>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '0 26px', overflowY: 'auto' }}>
@@ -37,7 +39,7 @@ export default function Login() {
           ))}
         </div>
         <div style={{ flex: '0 0 auto', paddingBottom: 24 }}>
-          <button className="btn ghost" style={{ borderRadius: 16 }} onClick={() => nav('/')}>
+          <button className="btn ghost" style={{ borderRadius: 16 }} onClick={signIn}>
             <span className="center" style={{ color: '#4285F4' }}><Icon name="google" size={20} sw={1.9} /></span>
             使用 Google 登入
           </button>

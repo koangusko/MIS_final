@@ -1,10 +1,10 @@
 import express from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
+import { env, googleConfigured } from './env';
+import { setupAuth } from './auth';
 
 const app = express();
-const PORT = Number(process.env.PORT) || 8080;
-
 app.use(express.json());
 
 // 健康檢查（compose / tunnel / nginx 都用這支）
@@ -12,12 +12,16 @@ app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
     service: 'screenpact-server',
+    googleConfigured,
     time: new Date().toISOString(),
   });
 });
 
+// session + passport + 認證路由（/api/auth/google、/callback、/logout、/me）
+setupAuth(app);
+
 // 正式環境：serve 前端建置產物（單一 origin）。
-// 容器與本機 build 後的相對位置一致：server/dist/index.js → ../../web/dist
+// 容器與本機 build 後相對位置一致：server/dist/index.js → ../../web/dist
 const webDist = path.resolve(__dirname, '../../web/dist');
 if (fs.existsSync(webDist)) {
   app.use(express.static(webDist));
@@ -29,6 +33,7 @@ if (fs.existsSync(webDist)) {
   console.warn(`[server] web build not found at ${webDist}（dev 模式請另跑 web 的 vite）`);
 }
 
-app.listen(PORT, () => {
-  console.log(`[server] listening on http://localhost:${PORT}`);
+app.listen(env.PORT, () => {
+  console.log(`[server] listening on http://localhost:${env.PORT}`);
+  console.log(`[server] APP_BASE_URL=${env.APP_BASE_URL} · google=${googleConfigured ? 'configured' : 'MISSING'}`);
 });

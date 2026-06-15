@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { Phone, TabBar, Avatar, Chip } from '../components/ui';
+import { useAuth, logout } from '../lib/auth';
 import type { IconName } from '../lib/icons';
 
 function Row({ ic, t, v, last }: { ic: IconName; t: string; v?: string; last?: boolean }) {
@@ -14,16 +15,22 @@ function Row({ ic, t, v, last }: { ic: IconName; t: string; v?: string; last?: b
 
 export default function Settings() {
   const nav = useNavigate();
+  const { user, refresh } = useAuth();
+  const onLogout = async () => {
+    await logout();
+    await refresh();
+    nav('/login');
+  };
   return (
     <Phone>
       <div className="appbar"><div><h1>我的</h1></div></div>
       <div className="wrap scroll-body">
         {/* profile */}
         <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 16 }}>
-          <Avatar name="宥" idx={2} size={52} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 16 }}>宥宥</div>
-            <div style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>yuyu@gmail.com</div>
+          <Avatar name={(user?.name ?? '?').slice(0, 1)} idx={2} size={52} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>{user?.name ?? '使用者'}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.email ?? ''}</div>
           </div>
           <button className="btn ghost sm" style={{ padding: '8px 14px' }}>編輯</button>
         </div>
@@ -61,7 +68,7 @@ export default function Settings() {
           <Row ic="lock" t="隱私與資料" last />
           <Row ic="info" t="關於 ScreenPact" v="v1.0" last />
         </div>
-        <button className="btn outline" style={{ marginTop: 16, color: 'var(--warn-ink)', borderColor: 'var(--warn-soft)' }} onClick={() => nav('/login')}>登出</button>
+        <button className="btn outline" style={{ marginTop: 16, color: 'var(--warn-ink)', borderColor: 'var(--warn-soft)' }} onClick={onLogout}>登出</button>
       </div>
       <TabBar />
     </Phone>

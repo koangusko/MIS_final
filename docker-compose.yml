@@ -6,8 +6,9 @@ services:
     env_file: .env
     environment:
       TZ: ${TZ:-Asia/Taipei}
-      PORT: ${PORT:-8080}
-      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-screenpact}:${POSTGRES_PASSWORD:-screenpact}@db:5432/${POSTGRES_DB:-screenpact}}
+      PORT: 8080
+      # 容器內固定連 db 服務（覆蓋 .env 的本機 DATABASE_URL）
+      DATABASE_URL: postgresql://${POSTGRES_USER:-screenpact}:${POSTGRES_PASSWORD:-screenpact}@db:5432/${POSTGRES_DB:-screenpact}
     ports:
       - "8080:8080"
     depends_on:
@@ -34,6 +35,10 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-screenpact}
       POSTGRES_DB: ${POSTGRES_DB:-screenpact}
       TZ: ${TZ:-Asia/Taipei}
+    ports:
+      # 對本機開放，讓在 host 跑的 dev server 連得到（正式上線可移除）
+      # 用非標準 host port 15432（避開可能過濾 5432 的本機安全工具/代理）
+      - "127.0.0.1:15432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped

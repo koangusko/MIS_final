@@ -1,7 +1,5 @@
-// Prisma schema
-// 完整資料模型（User / Room / RoomMember / AppCatalog / TrackedApp /
-// Rule / Proposal / Vote / Submission / ExtractedUsage / SettlementResult /
-// ChatMessage）將於 Phase 2 定義並建立首個 migration。
+// ScreenPact — Prisma schema
+// 時區語意一律 Asia/Taipei；日期欄位存 UTC，邊界由應用層以台北時間計算。
 
 generator client {
   provider = "prisma-client-js"
@@ -10,4 +8,241 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum Cycle {
+  DAILY
+  WEEKLY
+}
+
+enum MemberRole {
+  OWNER
+  MEMBER
+}
+
+enum AppCategory {
+  SOCIAL
+  SHORTVIDEO
+  OTHER
+}
+
+enum RuleScope {
+  APP
+  CATEGORY
+  TOTAL
+}
+
+enum ProposalKind {
+  CHANGE_CAP
+  CHANGE_PENALTY
+}
+
+enum ProposalStatus {
+  OPEN
+  PASSED
+  REJECTED
+  EXPIRED
+}
+
+enum SubmissionKind {
+  YESTERDAY
+  TODAY
+}
+
+enum SubmissionStatus {
+  PENDING
+  PARSED
+  NEED_REUPLOAD
+}
+
+enum MessageKind {
+  USER
+  SYSTEM
+}
+
+model User {
+  id         String   @id @default(cuid())
+  googleId   String   @unique
+  email      String   @unique
+  name       String
+  avatarUrl  String?
+  lineUserId String?  @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  memberships RoomMember[]
+  ownedRooms  Room[]             @relation("RoomOwner")
+  submissions Submission[]
+  proposals   Proposal[]         @relation("ProposalCreator")
+  votes       Vote[]
+  messages    ChatMessage[]
+  settlements SettlementResult[]
+}
+
+model Room {
+  id                 String    @id @default(cuid())
+  name               String
+  description        String?
+  cycle              Cycle     @default(DAILY)
+  reportDeadline     String    @default("23:00") // HH:mm (Asia/Taipei)
+  ownerId            String
+  joinToken          String?   @unique
+  joinTokenExpiresAt DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  owner       User               @relation("RoomOwner", fields: [ownerId], references: [id])
+  members     RoomMember[]
+  trackedApps TrackedApp[]
+  rules       Rule[]
+  proposals   Proposal[]
+  submissions Submission[]
+  settlements SettlementResult[]
+  messages    ChatMessage[]
+}
+
+model RoomMember {
+  id       String     @id @default(cuid())
+  roomId   String
+  userId   String
+  role     MemberRole @default(MEMBER)
+  joinedAt DateTime   @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+}
+
+model AppCatalog {
+  id       String      @id @default(cuid())
+  key      String      @unique
+  name     String
+  category AppCategory
+  glyph    String?
+  color    String?
+
+  trackedApps TrackedApp[]
+}
+
+model TrackedApp {
+  id          String @id @default(cuid())
+  roomId      String
+  appId       String
+  dailyCapMin Int?
+
+  room Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  app  AppCatalog @relation(fields: [appId], references: [id])
+
+  @@unique([roomId, appId])
+}
+
+model Rule {
+  id            String       @id @default(cuid())
+  roomId        String
+  scope         RuleScope
+  appId         String?
+  category      AppCategory?
+  capMin        Int
+  penaltyText   String?
+  effectiveFrom DateTime     @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+}
+
+model Proposal {
+  id          String         @id @default(cuid())
+  roomId      String
+  creatorId   String
+  kind        ProposalKind
+  title       String
+  description String?
+  status      ProposalStatus @default(OPEN)
+  closesAt    DateTime
+  createdAt   DateTime       @default(now())
+
+  room    Room             @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  creator User             @relation("ProposalCreator", fields: [creatorId], references: [id])
+  options ProposalOption[]
+  votes   Vote[]
+}
+
+model ProposalOption {
+  id         String @id @default(cuid())
+  proposalId String
+  label      String
+
+  proposal Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  votes    Vote[]
+}
+
+model Vote {
+  id         String   @id @default(cuid())
+  proposalId String
+  optionId   String
+  userId     String
+  createdAt  DateTime @default(now())
+
+  proposal Proposal       @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  option   ProposalOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([proposalId, userId])
+}
+
+model Submission {
+  id        String           @id @default(cuid())
+  roomId    String?
+  userId    String
+  forDate   DateTime
+  kind      SubmissionKind
+  status    SubmissionStatus @default(PENDING)
+  imagePath String
+  totalMin  Int?
+  createdAt DateTime         @default(now())
+
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room   Room?            @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  usages ExtractedUsage[]
+}
+
+model ExtractedUsage {
+  id           String @id @default(cuid())
+  submissionId String
+  appKey       String?
+  appLabel     String
+  minutes      Int
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+}
+
+model SettlementResult {
+  id          String   @id @default(cuid())
+  roomId      String
+  userId      String
+  periodStart DateTime
+  periodEnd   DateTime
+  totalMin    Int
+  capMin      Int
+  overMin     Int      @default(0)
+  passed      Boolean
+  penaltyText String?
+  createdAt   DateTime @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId, periodStart])
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  roomId    String
+  userId    String?
+  kind      MessageKind @default(USER)
+  body      String
+  createdAt DateTime    @default(now())
+
+  room Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
