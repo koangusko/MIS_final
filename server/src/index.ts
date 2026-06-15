@@ -1,8 +1,9 @@
 import express from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
-import { env, googleConfigured } from './env';
+import { env, googleConfigured, llmConfigured } from './env';
 import { setupAuth } from './auth';
+import { api } from './routes';
 
 const app = express();
 app.use(express.json());
@@ -13,12 +14,16 @@ app.get('/api/health', (_req, res) => {
     status: 'ok',
     service: 'screenpact-server',
     googleConfigured,
+    llmConfigured,
     time: new Date().toISOString(),
   });
 });
 
 // session + passport + 認證路由（/api/auth/google、/callback、/logout、/me）
 setupAuth(app);
+
+// 業務 API（上傳、解析、用量總覽、讀圖）— 需登入
+app.use('/api', api);
 
 // 正式環境：serve 前端建置產物（單一 origin）。
 // 容器與本機 build 後相對位置一致：server/dist/index.js → ../../web/dist
@@ -35,5 +40,7 @@ if (fs.existsSync(webDist)) {
 
 app.listen(env.PORT, () => {
   console.log(`[server] listening on http://localhost:${env.PORT}`);
-  console.log(`[server] APP_BASE_URL=${env.APP_BASE_URL} · google=${googleConfigured ? 'configured' : 'MISSING'}`);
+  console.log(
+    `[server] APP_BASE_URL=${env.APP_BASE_URL} · google=${googleConfigured ? 'configured' : 'MISSING'} · llm=${llmConfigured ? 'configured' : env.LLM_MOCK ? 'MOCK' : 'MISSING'}`,
+  );
 });

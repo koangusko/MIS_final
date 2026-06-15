@@ -38,8 +38,8 @@ export default function App() {
         <Gate>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/" element={<Dashboard variant="data" />} />
-            <Route path="/g/dashboard-empty" element={<Dashboard variant="empty" />} />
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/g/dashboard-empty" element={<Dashboard force="empty" />} />
 
             <Route path="/rooms" element={<RoomsList />} />
             <Route path="/rooms/new" element={<CreateRoom />} />

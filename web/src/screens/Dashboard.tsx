@@ -1,7 +1,31 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { Phone, TabBar, AppIcon, Bar, Chip, APPS } from '../components/ui';
 import { useAuth } from '../lib/auth';
+
+type Summary = {
+  hasData: boolean;
+  today: { date: string; totalMinutes: number; apps: { label: string; minutes: number }[] } | null;
+  week: { date: string; minutes: number }[];
+};
+
+const WD = ['日', '一', '二', '三', '四', '五', '六'];
+function weekday(dateStr: string): string {
+  return WD[new Date(`${dateStr}T00:00:00+08:00`).getDay()];
+}
+function glyphFor(label: string) {
+  return Object.values(APPS).find((a) => a.name === label) ?? { glyph: 'image' as const, color: '#8a8195' };
+}
+function Big({ min }: { min: number }) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h > 0 ? (
+    <>{h}<span className="unit">時</span>{m}<span className="unit">分</span></>
+  ) : (
+    <>{m}<span className="unit">分</span></>
+  );
+}
 
 function DashboardEmpty() {
   const nav = useNavigate();
@@ -26,7 +50,6 @@ function DashboardEmpty() {
             <Icon name="upload" size={20} sw={1.9} />上傳今日截圖
           </button>
         </div>
-
         <div className="sectlabel">我的房間</div>
         <div className="card flat" style={{ textAlign: 'center', padding: '26px 20px' }}>
           <span className="center" style={{ width: 50, height: 50, borderRadius: 15, background: 'var(--sand)', color: 'var(--ink-3)', margin: '0 auto 14px' }}>
@@ -45,24 +68,19 @@ function DashboardEmpty() {
   );
 }
 
-function DashboardData() {
+function DashboardData({ summary }: { summary: Summary }) {
   const nav = useNavigate();
-  const days: { d: string; v: number; over?: boolean; today?: boolean }[] = [
-    { d: '一', v: 64 }, { d: '二', v: 52 }, { d: '三', v: 78, over: true },
-    { d: '四', v: 41 }, { d: '五', v: 58 }, { d: '六', v: 88, over: true }, { d: '日', v: 70, today: true },
-  ];
-  const max = 90;
-  const apps = [
-    { ...APPS.tk, m: 38, cap: 40 },
-    { ...APPS.ig, m: 22, cap: 30 },
-    { ...APPS.yt, m: 10, cap: 25 },
-  ];
+  const total = summary.today?.totalMinutes ?? 0;
+  const apps = summary.today?.apps ?? [];
+  const maxApp = Math.max(1, ...apps.map((a) => a.minutes));
+  const maxDay = Math.max(1, ...summary.week.map((d) => d.minutes));
+  const todayStr = summary.week[summary.week.length - 1]?.date;
   return (
     <>
       <div className="appbar">
         <div>
           <h1>今日總覽</h1>
-          <div className="sub">6 月 15 日 · 週日</div>
+          <div className="sub">{summary.today ? '今日已回報' : '今天還沒打卡'}</div>
         </div>
         <button className="iconbtn" onClick={() => nav('/notifications')}><Icon name="bell" size={20} /></button>
       </div>
@@ -71,19 +89,12 @@ function DashboardData() {
         <div className="card">
           <div className="between">
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-2)' }}>社群＋短影音</span>
-            <div className="seg"><button className="on">今日</button><button>本週</button></div>
+            <Chip kind="accent">{summary.today ? '今日' : '近 7 天'}</Chip>
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 14 }}>
-            <span className="bignum tnum" style={{ fontSize: 56 }}>1<span className="unit">時</span>10<span className="unit">分</span></span>
-            <Chip kind="good" dot>較昨日 −12 分</Chip>
+            <span className="bignum tnum" style={{ fontSize: 56 }}><Big min={total} /></span>
           </div>
-          <div style={{ marginTop: 16 }}>
-            <div className="between" style={{ fontSize: 12, color: 'var(--ink-2)', marginBottom: 6 }}>
-              <span>距每日上限 1時30分</span>
-              <span className="tnum" style={{ fontWeight: 700, color: 'var(--good-ink)' }}>還剩 20 分</span>
-            </div>
-            <Bar pct={78} />
-          </div>
+          <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 12 }}>加入房間後，這裡會顯示對房間上限的進度。</div>
         </div>
 
         {/* trend chart */}
@@ -93,65 +104,49 @@ function DashboardData() {
             <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>分鐘</span>
           </div>
           <div className="chart">
-            {days.map((d, i) => (
-              <div className="day" key={i}>
-                <div className={'stack' + (d.over ? ' over' : d.today ? '' : ' dim')} style={{ height: (d.v / max * 100) + '%' }} />
-                <div className="dlabel" style={d.today ? { color: 'var(--accent)', fontWeight: 700 } : undefined}>{d.d}</div>
-              </div>
-            ))}
+            {summary.week.map((d, i) => {
+              const isToday = d.date === todayStr;
+              return (
+                <div className="day" key={i}>
+                  <div className={'stack' + (isToday ? '' : ' dim')} style={{ height: Math.max(5, (d.minutes / maxDay) * 100) + '%' }} />
+                  <div className="dlabel" style={isToday ? { color: 'var(--accent)', fontWeight: 700 } : undefined}>{weekday(d.date)}</div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* tracked apps */}
-        <div className="card">
-          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>各 App 使用</div>
-          {apps.map((a, i) => {
-            const pct = a.m / a.cap * 100;
-            const over = a.m > a.cap;
-            return (
-              <div className="approw" key={i}>
-                <AppIcon glyph={a.glyph} color={a.color} />
-                <div className="meta">
-                  <div className="between">
-                    <span className="nm">{a.name}</span>
-                    <span className="mins" style={over ? { color: 'var(--warn-ink)' } : undefined}>{a.m} 分</span>
+        {/* apps */}
+        {apps.length > 0 && (
+          <div className="card">
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>各 App 使用</div>
+            {apps.map((a, i) => {
+              const g = glyphFor(a.label);
+              return (
+                <div className="approw" key={i}>
+                  <AppIcon glyph={g.glyph} color={g.color} />
+                  <div className="meta">
+                    <div className="between"><span className="nm">{a.label}</span><span className="mins">{a.minutes} 分</span></div>
+                    <div style={{ marginTop: 6 }}><Bar pct={(a.minutes / maxApp) * 100} /></div>
                   </div>
-                  <div style={{ marginTop: 6 }}><Bar pct={pct} state={over ? 'over' : ''} /></div>
                 </div>
-              </div>
-            );
-          })}
-          <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 10, textAlign: 'center' }}>上限為房間「沉澱小隊」設定</div>
-        </div>
+              );
+            })}
+          </div>
+        )}
 
-        {/* my rooms */}
+        {/* my rooms (mock — Phase 4 接真實) */}
         <div className="sectlabel">我的房間</div>
-        <div className="card" style={{ padding: 16 }} onClick={() => nav('/rooms/sad')} role="button">
+        <div className="card" style={{ padding: 16 }} role="button" onClick={() => nav('/rooms/sad')}>
           <div className="between">
             <div className="row" style={{ gap: 11 }}>
               <span className="center" style={{ width: 42, height: 42, borderRadius: 13, background: 'var(--accent-soft)', color: 'var(--accent)' }}><Icon name="room" size={21} /></span>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 15 }}>沉澱小隊</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 1 }}>5 人 · 每日結算</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 1 }}>5 人 · 每日結算（示意）</div>
               </div>
             </div>
-            <Chip kind="good" dot>本期達標</Chip>
-          </div>
-          <div className="between" style={{ marginTop: 13, paddingTop: 13, borderTop: '1px solid var(--line-2)', fontSize: 12.5 }}>
-            <span className="row" style={{ gap: 6, color: 'var(--warn-ink)' }}><Icon name="clock" size={15} />距回報截止 4 小時</span>
-            <span className="row" style={{ gap: 4, color: 'var(--accent)', fontWeight: 700 }}>進入房間<Icon name="chevR" size={15} /></span>
-          </div>
-        </div>
-        <div className="card" style={{ padding: 16 }} onClick={() => nav('/rooms/off')} role="button">
-          <div className="between">
-            <div className="row" style={{ gap: 11 }}>
-              <span className="center" style={{ width: 42, height: 42, borderRadius: 13, background: 'var(--sand)', color: 'var(--ink-2)' }}><Icon name="flame" size={21} /></span>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>下班不滑挑戰</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 1 }}>8 人 · 每週結算</div>
-              </div>
-            </div>
-            <Chip kind="warn" dot>超標 15 分</Chip>
+            <span className="row" style={{ gap: 4, color: 'var(--accent)', fontWeight: 700, fontSize: 12.5 }}>進入<Icon name="chevR" size={15} /></span>
           </div>
         </div>
       </div>
@@ -160,6 +155,22 @@ function DashboardData() {
   );
 }
 
-export default function Dashboard({ variant = 'data' }: { variant?: 'empty' | 'data' }) {
-  return <Phone>{variant === 'empty' ? <DashboardEmpty /> : <DashboardData />}</Phone>;
+export default function Dashboard({ force }: { force?: 'empty' }) {
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [loading, setLoading] = useState(force !== 'empty');
+
+  useEffect(() => {
+    if (force === 'empty') return;
+    let alive = true;
+    fetch('/api/usage/summary', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive) { setSummary(d); setLoading(false); } })
+      .catch(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [force]);
+
+  if (force === 'empty') return <Phone><DashboardEmpty /></Phone>;
+  if (loading) return <Phone><div className="wrap center" style={{ color: 'var(--ink-3)' }}>載入中…</div><TabBar /></Phone>;
+  if (!summary?.hasData) return <Phone><DashboardEmpty /></Phone>;
+  return <Phone><DashboardData summary={summary} /></Phone>;
 }
