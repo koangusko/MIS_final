@@ -43,7 +43,7 @@ export default function App() {
 
             <Route path="/rooms" element={<RoomsList />} />
             <Route path="/rooms/new" element={<CreateRoom />} />
-            <Route path="/rooms/new/invite" element={<InviteSuccess />} />
+            <Route path="/rooms/:id/invite" element={<InviteSuccess />} />
             <Route path="/rooms/:id" element={<RoomDetail />} />
             <Route path="/rooms/:id/tracking" element={<Tracking />} />
             <Route path="/rooms/:id/vote" element={<RulesVote />} />

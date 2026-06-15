@@ -4,14 +4,11 @@ import { Phone } from '../components/ui';
 
 // Dev-only gallery: jump to every screen / state. Not part of the product flow.
 const SECTIONS: { title: string; links: [string, string][] }[] = [
-  { title: '① 登入', links: [['登入頁', '/login']] },
-  { title: '② 個人總覽', links: [['有資料', '/'], ['無資料（首次）', '/g/dashboard-empty']] },
-  { title: '③ 每日上傳', links: [['空', '/upload?state=empty'], ['解析中', '/upload?state=parsing'], ['成功確認', '/upload?state=success'], ['失敗重傳', '/upload?state=fail']] },
-  { title: '④ 房間詳情', links: [['成員', '/rooms/sad?tab=member'], ['規則', '/rooms/sad?tab=rule'], ['排行', '/rooms/sad?tab=rank'], ['聊天', '/rooms/sad?tab=chat']] },
-  { title: '⑤ 建立房間 + 邀請', links: [['建立房間', '/rooms/new'], ['邀請成功', '/rooms/new/invite']] },
-  { title: '⑥ 加入房間預覽', links: [['連結有效', '/join/9F4K-2QXP'], ['連結已失效', '/join/expired']] },
-  { title: '導覽分頁', links: [['房間列表', '/rooms'], ['通知中心', '/notifications'], ['我的 / LINE 綁定', '/me']] },
-  { title: 'P1（提前實作的 mock）', links: [['追蹤清單設定', '/rooms/sad/tracking'], ['規則與投票', '/rooms/sad/vote'], ['結算結果', '/rooms/sad/settlement']] },
+  { title: '登入 / 總覽', links: [['登入頁', '/login'], ['總覽（有資料）', '/'], ['總覽（無資料）', '/g/dashboard-empty']] },
+  { title: '每日上傳', links: [['上傳頁', '/upload']] },
+  { title: '房間（真實流程）', links: [['房間列表', '/rooms'], ['建立房間', '/rooms/new'], ['加入連結（失效範例）', '/join/expired']] },
+  { title: '導覽分頁', links: [['通知中心', '/notifications'], ['我的 / LINE 綁定', '/me']] },
+  { title: 'Phase 5 設計預覽（mock）', links: [['規則與投票', '/rooms/x/vote'], ['結算結果', '/rooms/x/settlement']] },
 ];
 
 export default function Screens() {

@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import { env, googleConfigured, llmConfigured } from './env';
 import { setupAuth } from './auth';
 import { api } from './routes';
+import { rooms } from './rooms';
+import { seedCatalog } from './catalog';
 
 const app = express();
 app.use(express.json());
@@ -22,8 +24,9 @@ app.get('/api/health', (_req, res) => {
 // session + passport + 認證路由（/api/auth/google、/callback、/logout、/me）
 setupAuth(app);
 
-// 業務 API（上傳、解析、用量總覽、讀圖）— 需登入
+// 業務 API（上傳、解析、用量總覽、讀圖；房間/邀請/追蹤清單）— 需登入
 app.use('/api', api);
+app.use('/api', rooms);
 
 // 正式環境：serve 前端建置產物（單一 origin）。
 // 容器與本機 build 後相對位置一致：server/dist/index.js → ../../web/dist
@@ -37,6 +40,9 @@ if (fs.existsSync(webDist)) {
 } else {
   console.warn(`[server] web build not found at ${webDist}（dev 模式請另跑 web 的 vite）`);
 }
+
+// 啟動時 seed App 目錄（idempotent）
+seedCatalog().catch((e) => console.error('[server] seedCatalog failed', e));
 
 app.listen(env.PORT, () => {
   console.log(`[server] listening on http://localhost:${env.PORT}`);
