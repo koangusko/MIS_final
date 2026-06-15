@@ -5,6 +5,7 @@ import { prisma } from './prisma';
 import { requireAuth } from './auth';
 import { env } from './env';
 import { DEFAULT_TRACKED_KEYS } from './catalog';
+import { announce } from './announce';
 import type { Cycle } from '@prisma/client';
 
 export const rooms = Router();
@@ -119,11 +120,12 @@ rooms.post('/rooms/join/:token', requireAuth, async (req, res) => {
     res.status(410).json({ error: 'expired' });
     return;
   }
-  await prisma.roomMember.upsert({
-    where: { roomId_userId: { roomId: room.id, userId: uid(req) } },
-    update: {},
-    create: { roomId: room.id, userId: uid(req), role: 'MEMBER' },
-  });
+  const existing = await prisma.roomMember.findUnique({ where: { roomId_userId: { roomId: room.id, userId: uid(req) } } });
+  if (!existing) {
+    await prisma.roomMember.create({ data: { roomId: room.id, userId: uid(req), role: 'MEMBER' } });
+    const u = await prisma.user.findUnique({ where: { id: uid(req) } });
+    await announce(room.id, `${u?.name ?? '新成員'} 加入了房間。`);
+  }
   res.json({ roomId: room.id });
 });
 
@@ -232,6 +234,7 @@ rooms.put('/rooms/:id/tracked-apps', requireAuth, async (req, res) => {
         })),
     }),
   ]);
+  await announce(room.id, `追蹤清單已更新（追蹤 ${keys.length} 個 App）。`);
   res.json({ ok: true, count: keys.length });
 });
 
@@ -254,6 +257,7 @@ rooms.put('/rooms/:id/rules', requireAuth, async (req, res) => {
       penaltyText: typeof penaltyText === 'string' ? penaltyText.trim() || null : null,
     },
   });
+  await announce(room.id, '房間規則已更新（合計上限／懲罰）。');
   res.json({ ok: true });
 });
 
@@ -324,6 +328,7 @@ rooms.post('/rooms/:id/proposals', requireAuth, async (req, res) => {
   const p = await prisma.proposal.create({
     data: { roomId: req.params.id, creatorId: me, kind: data.kind, title, newCapMin: data.newCapMin, newPenaltyText: data.newPenaltyText, closesAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) },
   });
+  await announce(req.params.id, `有新提案要投票：${title}`);
   res.json({ id: p.id });
 });
 
@@ -393,6 +398,7 @@ rooms.post('/proposals/:pid/vote', requireAuth, async (req, res) => {
           : { penaltyText: proposal.newPenaltyText },
       }),
     ]);
+    await announce(proposal.roomId, `提案通過並套用：${proposal.title}`);
   }
   res.json({ ok: true, approveCount, need, passed });
 });

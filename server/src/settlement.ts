@@ -1,5 +1,6 @@
 import { prisma } from './prisma';
 import { taipeiDayStartUtc } from './time';
+import { announce } from './announce';
 
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, '');
 
@@ -57,5 +58,9 @@ export async function settleRoom(
     out.push({ userId: m.userId, used, over, passed, reported });
   }
   await prisma.room.update({ where: { id: roomId }, data: { lastSettledPeriod: periodKey } });
+
+  const passed = out.filter((m) => m.passed).length;
+  const failed = out.length - passed;
+  await announce(roomId, `本期結算完成：${passed} 人達標、${failed} 人超標／未回報。`);
   return out;
 }

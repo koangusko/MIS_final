@@ -20,6 +20,9 @@ export const env = {
   LLM_MODEL: process.env.LLM_MODEL || '',
   // 開發用：未接真 LLM 時回傳假解析，方便先測整條流程
   LLM_MOCK: process.env.LLM_MOCK === '1' || process.env.LLM_MOCK === 'true',
+  // LINE Messaging API
+  LINE_CHANNEL_SECRET: process.env.LINE_CHANNEL_SECRET || '',
+  LINE_CHANNEL_ACCESS_TOKEN: process.env.LINE_CHANNEL_ACCESS_TOKEN || '',
   // 截圖儲存目錄
   UPLOAD_DIR: process.env.UPLOAD_DIR || path.resolve(__dirname, '../../data/uploads'),
   TZ: process.env.TZ || 'Asia/Taipei',
@@ -28,3 +31,4 @@ export const env = {
 export const isHttps = env.APP_BASE_URL.startsWith('https://');
 export const googleConfigured = Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
 export const llmConfigured = Boolean(env.OPENCODE_API_KEY && env.OPENCODE_BASE_URL && env.LLM_MODEL);
+export const lineConfigured = Boolean(env.LINE_CHANNEL_SECRET && env.LINE_CHANNEL_ACCESS_TOKEN);

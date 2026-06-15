@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { Phone, Avatar, AppIcon, Chip } from '../components/ui';
@@ -63,11 +63,14 @@ export default function RoomDetail() {
           {TABS.map(([t, label]) => <button key={t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{label}</button>)}
         </div>
       </div>
-      <div className="wrap" style={{ padding: '4px 16px 22px' }}>
-        {tab === 'member' && <Members room={room} isOwner={isOwner} onInvite={() => nav(`/rooms/${room.id}/invite`)} />}
-        {tab === 'rule' && <Rules room={room} isOwner={isOwner} onEditTracking={() => nav(`/rooms/${room.id}/tracking`)} onSettlement={() => nav(`/rooms/${room.id}/settlement`)} onVote={() => nav(`/rooms/${room.id}/vote`)} reload={load} />}
-        {tab === 'chat' && <Placeholder icon="room" title="房間聊天室即將推出" desc="成員聊天與系統公告會在 Phase 6 上線。" />}
-      </div>
+      {tab === 'chat' ? (
+        <Chat roomId={room.id} />
+      ) : (
+        <div className="wrap" style={{ padding: '4px 16px 22px' }}>
+          {tab === 'member' && <Members room={room} isOwner={isOwner} onInvite={() => nav(`/rooms/${room.id}/invite`)} />}
+          {tab === 'rule' && <Rules room={room} isOwner={isOwner} onEditTracking={() => nav(`/rooms/${room.id}/tracking`)} onSettlement={() => nav(`/rooms/${room.id}/settlement`)} onVote={() => nav(`/rooms/${room.id}/vote`)} reload={load} />}
+        </div>
+      )}
     </Phone>
   );
 }
@@ -182,12 +185,45 @@ function Rules({ room, isOwner, onEditTracking, onSettlement, onVote, reload }: 
   );
 }
 
-function Placeholder({ icon, title, desc }: { icon: IconName; title: string; desc: string }) {
+type Msg = { id: string; kind: 'USER' | 'SYSTEM'; body: string; createdAt: string; name: string | null; initial: string | null; isMe: boolean };
+const hashIdx = (s: string) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
+
+function Chat({ roomId }: { roomId: string }) {
+  const [msgs, setMsgs] = useState<Msg[]>([]);
+  const [text, setText] = useState('');
+  const endRef = useRef<HTMLDivElement>(null);
+  const load = useCallback(() => api.get<Msg[]>(`/api/rooms/${roomId}/messages`).then(setMsgs).catch(() => {}), [roomId]);
+  useEffect(() => { void load(); const t = setInterval(() => void load(), 4000); return () => clearInterval(t); }, [load]);
+  useEffect(() => { endRef.current?.scrollIntoView(); }, [msgs.length]);
+  const send = async () => {
+    const b = text.trim();
+    if (!b) return;
+    setText('');
+    try { await api.post(`/api/rooms/${roomId}/messages`, { body: b }); await load(); } catch { /* ignore */ }
+  };
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '50px 24px', gap: 12 }}>
-      <span className="center" style={{ width: 72, height: 72, borderRadius: 22, background: 'var(--accent-soft)', color: 'var(--accent)' }}><Icon name={icon} size={32} /></span>
-      <div style={{ fontWeight: 700, fontSize: 16 }}>{title}</div>
-      <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6 }}>{desc}</div>
+    <div style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '6px 16px 8px', display: 'flex', flexDirection: 'column', gap: 11 }}>
+        {msgs.length === 0 && <div className="center" style={{ color: 'var(--ink-3)', fontSize: 13, padding: 30 }}>還沒有訊息，開始聊吧</div>}
+        {msgs.map((m) =>
+          m.kind === 'SYSTEM' ? (
+            <div key={m.id} className="sysline"><span className="st"><Icon name="info" size={15} />系統公告</span><span>{m.body}</span></div>
+          ) : m.isMe ? (
+            <div key={m.id} style={{ alignSelf: 'flex-end', maxWidth: '78%' }}><div className="bubble me">{m.body}</div></div>
+          ) : (
+            <div key={m.id} className="row" style={{ gap: 9, alignItems: 'flex-end' }}>
+              <Avatar name={m.initial ?? '?'} idx={hashIdx(m.name ?? '')} size={32} />
+              <div><div style={{ fontSize: 11, color: 'var(--ink-3)', margin: '0 0 3px 4px' }}>{m.name}</div><div className="bubble them">{m.body}</div></div>
+            </div>
+          ),
+        )}
+        <div ref={endRef} />
+      </div>
+      <div className="footerbar" style={{ display: 'flex', gap: 10 }}>
+        <input className="input" style={{ flex: 1, padding: '10px 14px' }} value={text} placeholder="輸入訊息…"
+          onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void send(); }} />
+        <button className="center" style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--accent)', color: '#fff', border: 'none', flex: '0 0 auto' }} onClick={() => void send()} aria-label="送出"><Icon name="send" size={20} sw={1.9} /></button>
+      </div>
     </div>
   );
 }

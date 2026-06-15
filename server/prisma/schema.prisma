@@ -65,9 +65,10 @@ model User {
   googleId   String   @unique
   email      String   @unique
   name       String
-  avatarUrl  String?
-  lineUserId String?  @unique
-  createdAt  DateTime @default(now())
+  avatarUrl       String?
+  lineUserId      String?  @unique
+  lineBindingCode String?  @unique // 綁定碼（使用者傳給 bot 以綁定）
+  createdAt       DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   memberships RoomMember[]
