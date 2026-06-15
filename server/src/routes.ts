@@ -34,6 +34,29 @@ function userId(req: { user?: unknown }): string {
 
 async function handleOne(uid: string, kind: SubmissionKind, file: Express.Multer.File) {
   const forDateStr = kind === 'YESTERDAY' ? yesterdayTaipei() : todayTaipei();
+  const forDate = taipeiDayStartUtc(forDateStr);
+
+  // 昨天：已成功上傳過就鎖定，不可再傳
+  if (kind === 'YESTERDAY') {
+    const locked = await prisma.submission.findFirst({ where: { userId: uid, kind: 'YESTERDAY', forDate, status: 'PARSED' } });
+    if (locked) {
+      return { kind, status: 'LOCKED' as const, totalMinutes: locked.totalMin, message: '昨天的數據已上傳並鎖定，不能再更改' };
+    }
+  }
+
+  // 先解析（用 buffer，不必先落地）
+  const dataUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+  const result = await parseScreenshot(dataUrl);
+
+  // 今天：可重複覆蓋，但時數只能變多不能變少
+  if (result.ok && kind === 'TODAY') {
+    const prev = await prisma.submission.findFirst({ where: { userId: uid, kind: 'TODAY', forDate, status: 'PARSED' }, orderBy: { totalMin: 'desc' } });
+    if (prev?.totalMin != null && (result.totalMinutes ?? 0) < prev.totalMin) {
+      return { kind, status: 'REJECTED_DECREASE' as const, totalMinutes: result.totalMinutes, previous: prev.totalMin, message: `今天的時數只會增加；目前已記錄 ${prev.totalMin} 分，這張較少不採用` };
+    }
+  }
+
+  // 落地存檔
   const ext = EXT[file.mimetype] ?? '.img';
   const dir = path.join(env.UPLOAD_DIR, uid);
   fs.mkdirSync(dir, { recursive: true });
@@ -41,42 +64,20 @@ async function handleOne(uid: string, kind: SubmissionKind, file: Express.Multer
   const filePath = path.join(dir, `${id}${ext}`);
   fs.writeFileSync(filePath, file.buffer);
 
-  const submission = await prisma.submission.create({
-    data: { id, userId: uid, kind, forDate: taipeiDayStartUtc(forDateStr), imagePath: filePath, status: 'PENDING' },
-  });
-
-  const dataUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
-  const result = await parseScreenshot(dataUrl);
-
   if (!result.ok) {
-    await prisma.submission.update({ where: { id: submission.id }, data: { status: 'NEED_REUPLOAD' } });
-    return {
-      submissionId: submission.id,
-      kind,
-      status: 'NEED_REUPLOAD' as const,
-      reason: result.reason ?? 'parse_failed',
-      imageUrl: `/api/submissions/${submission.id}/image`,
-    };
+    await prisma.submission.create({ data: { id, userId: uid, kind, forDate, imagePath: filePath, status: 'NEED_REUPLOAD' } });
+    return { submissionId: id, kind, status: 'NEED_REUPLOAD' as const, reason: result.reason ?? 'parse_failed', imageUrl: `/api/submissions/${id}/image` };
   }
 
   await prisma.$transaction([
-    prisma.submission.update({
-      where: { id: submission.id },
-      data: { status: 'PARSED', totalMin: result.totalMinutes ?? null },
-    }),
-    prisma.extractedUsage.createMany({
-      data: result.apps.map((a) => ({ submissionId: submission.id, appLabel: a.label, minutes: a.minutes })),
-    }),
+    prisma.submission.create({ data: { id, userId: uid, kind, forDate, imagePath: filePath, status: 'PARSED', totalMin: result.totalMinutes ?? null } }),
+    prisma.extractedUsage.createMany({ data: result.apps.map((a) => ({ submissionId: id, appLabel: a.label, minutes: a.minutes })) }),
   ]);
 
   return {
-    submissionId: submission.id,
-    kind,
-    status: 'PARSED' as const,
-    date: result.date,
-    totalMinutes: result.totalMinutes,
-    apps: result.apps,
-    imageUrl: `/api/submissions/${submission.id}/image`,
+    submissionId: id, kind, status: 'PARSED' as const,
+    date: result.date, totalMinutes: result.totalMinutes, apps: result.apps,
+    imageUrl: `/api/submissions/${id}/image`,
   };
 }
 
@@ -108,6 +109,37 @@ api.post(
     }
   },
 );
+
+// 上傳狀態：昨天是否已鎖定、今天目前記錄
+api.get('/submissions/status', requireAuth, async (req, res) => {
+  const uid = userId(req);
+  const [yLocked, tPrev] = await Promise.all([
+    prisma.submission.findFirst({ where: { userId: uid, kind: 'YESTERDAY', forDate: taipeiDayStartUtc(yesterdayTaipei()), status: 'PARSED' } }),
+    prisma.submission.findFirst({ where: { userId: uid, kind: 'TODAY', forDate: taipeiDayStartUtc(todayTaipei()), status: 'PARSED' }, orderBy: { totalMin: 'desc' } }),
+  ]);
+  res.json({
+    yesterday: { locked: !!yLocked, totalMin: yLocked?.totalMin ?? null },
+    today: { totalMin: tPrev?.totalMin ?? null },
+  });
+});
+
+// 通知中心：使用者所有房間的近期系統公告
+api.get('/notifications', requireAuth, async (req, res) => {
+  const uid = userId(req);
+  const memberships = await prisma.roomMember.findMany({ where: { userId: uid }, select: { roomId: true } });
+  const roomIds = memberships.map((m) => m.roomId);
+  if (roomIds.length === 0) {
+    res.json({ items: [] });
+    return;
+  }
+  const msgs = await prisma.chatMessage.findMany({
+    where: { roomId: { in: roomIds }, kind: 'SYSTEM' },
+    include: { room: { select: { id: true, name: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 40,
+  });
+  res.json({ items: msgs.map((m) => ({ id: m.id, roomId: m.room.id, room: m.room.name, body: m.body, createdAt: m.createdAt })) });
+});
 
 // 安全讀圖：僅本人可存取
 api.get('/submissions/:id/image', requireAuth, async (req, res) => {

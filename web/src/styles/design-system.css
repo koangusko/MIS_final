@@ -214,7 +214,7 @@ body{margin:0;background:var(--bg)}
 .field label{display:block;font-size:13px;font-weight:700;color:var(--ink-2);margin:0 4px 7px}
 .input{
   width:100%;border:1px solid var(--line);background:var(--card-2);border-radius:13px;
-  padding:13px 15px;font-family:inherit;font-size:15px;color:var(--ink);
+  padding:13px 15px;font-family:inherit;font-size:16px;color:var(--ink);
 }
 .input::placeholder{color:var(--ink-3)}
 .input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
@@ -233,7 +233,7 @@ textarea.input{resize:none;line-height:1.5}
 .roomtabs button.on{background:var(--card-2);color:var(--ink);box-shadow:var(--shadow-sm)}
 
 /* chat */
-.bubble{max-width:78%;padding:10px 13px;border-radius:16px;font-size:14px;line-height:1.45}
+.bubble{max-width:100%;padding:10px 13px;border-radius:16px;font-size:14px;line-height:1.45;word-break:break-word;overflow-wrap:anywhere}
 .bubble.them{background:var(--card-2);border:1px solid var(--line);border-bottom-left-radius:5px}
 .bubble.me{background:var(--accent);color:#fff;border-bottom-right-radius:5px}
 .sysline{display:flex;flex-direction:column;gap:5px;padding:11px 13px;border-radius:14px;

@@ -1,19 +1,23 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { Phone, PageHeader, AppIcon, APPS } from '../components/ui';
+import { api } from '../lib/api';
 
 type Phase = 'select' | 'parsing' | 'done';
 type OneResult = {
-  submissionId: string;
+  submissionId?: string;
   kind: 'YESTERDAY' | 'TODAY';
-  status: 'PARSED' | 'NEED_REUPLOAD';
+  status: 'PARSED' | 'NEED_REUPLOAD' | 'LOCKED' | 'REJECTED_DECREASE';
   reason?: string;
+  message?: string;
+  previous?: number | null;
   date?: string | null;
   totalMinutes?: number | null;
   apps?: { label: string; minutes: number }[];
-  imageUrl: string;
+  imageUrl?: string;
 };
+type UploadStatus = { yesterday: { locked: boolean; totalMin: number | null }; today: { totalMin: number | null } };
 
 function fmt(min?: number | null): string {
   const m = min ?? 0;
@@ -33,6 +37,10 @@ export default function Upload() {
   const [tFile, setTFile] = useState<File | null>(null);
   const [results, setResults] = useState<{ yesterday?: OneResult; today?: OneResult }>({});
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<UploadStatus | null>(null);
+
+  const loadStatus = () => api.get<UploadStatus>('/api/submissions/status').then(setStatus).catch(() => {});
+  useEffect(() => { void loadStatus(); }, []);
 
   const submit = async () => {
     setError(null);
@@ -51,6 +59,7 @@ export default function Upload() {
       const data = await r.json();
       setResults(data.results || {});
       setPhase('done');
+      void loadStatus();
     } catch {
       setError('網路錯誤，請再試一次');
       setPhase('select');
@@ -62,13 +71,14 @@ export default function Upload() {
     setYFile(null);
     setTFile(null);
     setPhase('select');
+    void loadStatus();
   };
 
   return (
     <Phone>
       <PageHeader title="每日回報" sub="上傳兩張截圖，自動讀出時數" />
       {phase === 'select' && (
-        <Select yFile={yFile} tFile={tFile} setY={setYFile} setT={setTFile} error={error} onSubmit={submit} />
+        <Select yFile={yFile} tFile={tFile} setY={setYFile} setT={setTFile} error={error} onSubmit={submit} status={status} />
       )}
       {phase === 'parsing' && <Parsing />}
       {phase === 'done' && <Done results={results} onDone={() => nav('/')} onReset={reset} />}
@@ -106,22 +116,34 @@ function Picker({ tag, title, hint, page, file, onPick }: {
   );
 }
 
-function Select({ yFile, tFile, setY, setT, error, onSubmit }: {
+function Select({ yFile, tFile, setY, setT, error, onSubmit, status }: {
   yFile: File | null; tFile: File | null; setY: (f: File | null) => void; setT: (f: File | null) => void;
-  error: string | null; onSubmit: () => void;
+  error: string | null; onSubmit: () => void; status: UploadStatus | null;
 }) {
-  const any = !!yFile || !!tFile;
+  const yLocked = status?.yesterday.locked ?? false;
+  const todayMin = status?.today.totalMin ?? null;
+  const any = (!yLocked && !!yFile) || !!tFile;
   return (
     <div className="wrap scroll-body">
       <div className="card" style={{ background: 'var(--accent-soft)', boxShadow: 'none', display: 'flex', gap: 11, padding: 15 }}>
         <span style={{ color: 'var(--accent-ink)', flex: '0 0 auto' }}><Icon name="info" size={20} /></span>
         <div style={{ fontSize: 12.5, color: 'var(--accent-ink)', lineHeight: 1.5 }}>
-          每天上傳<b>「昨天完整」</b>與<b>「今天打卡」</b>兩張，才能準確結算昨天、提早提醒今天。
+          昨天成功上傳後會<b>鎖定</b>；今天可重複覆蓋，但時數<b>只會往上加</b>。
         </div>
       </div>
       <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <Picker tag="第 1 張" title="上傳昨天的完整數據" hint="昨天一整天的螢幕使用時間，用來結算。" page="截「螢幕使用時間 → 昨天」整頁" file={yFile} onPick={setY} />
-        <Picker tag="第 2 張" title="今天先打個卡" hint="今天目前為止的用量，讓大家看到進度。" page="截「螢幕使用時間 → 今天」整頁" file={tFile} onPick={setT} />
+        {yLocked ? (
+          <div className="card flat" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14 }}>
+            <span className="center" style={{ width: 38, height: 38, borderRadius: 11, background: 'var(--good-soft)', color: 'var(--good-ink)', flex: '0 0 auto' }}><Icon name="lock" size={18} /></span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>昨天已上傳並鎖定</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-2)' }}>合計 {status?.yesterday.totalMin ?? 0} 分 · 不可再更改</div>
+            </div>
+          </div>
+        ) : (
+          <Picker tag="第 1 張" title="上傳昨天的完整數據" hint="昨天一整天的螢幕使用時間，用來結算（成功後鎖定）。" page="截「螢幕使用時間 → 昨天」整頁" file={yFile} onPick={setY} />
+        )}
+        <Picker tag="第 2 張" title="今天先打個卡" hint={todayMin != null ? `目前已記錄 ${todayMin} 分；只能再往上加。` : '今天目前為止的用量，讓大家看到進度。'} page="截「螢幕使用時間 → 今天」整頁" file={tFile} onPick={setT} />
       </div>
       {error && (
         <div className="card" style={{ marginTop: 14, background: 'var(--warn-soft)', boxShadow: 'none', color: 'var(--warn-ink)', fontSize: 13 }}>
@@ -132,7 +154,7 @@ function Select({ yFile, tFile, setY, setT, error, onSubmit }: {
         {any ? '上傳並解析' : '請先選擇截圖'}
       </button>
       <div style={{ textAlign: 'center', fontSize: 11.5, color: 'var(--ink-3)', marginTop: 12, lineHeight: 1.5 }}>
-        看不懂截哪一頁？<span style={{ color: 'var(--accent)', fontWeight: 700 }}>看教學</span>
+        截「設定 → 螢幕使用時間」整頁，數字清楚別被遮住。
       </div>
     </div>
   );
@@ -204,6 +226,22 @@ function FailCard({ r }: { r: OneResult }) {
   );
 }
 
+function NoteCard({ r }: { r: OneResult }) {
+  const title = r.kind === 'YESTERDAY' ? '昨天' : '今天';
+  const locked = r.status === 'LOCKED';
+  return (
+    <div className="card flat" style={{ marginBottom: 14, display: 'flex', gap: 12, padding: 14, alignItems: 'flex-start' }}>
+      <span className="center" style={{ width: 38, height: 38, borderRadius: 11, background: locked ? 'var(--good-soft)' : 'var(--warn-soft)', color: locked ? 'var(--good-ink)' : 'var(--warn-ink)', flex: '0 0 auto' }}>
+        <Icon name={locked ? 'lock' : 'alert'} size={18} />
+      </span>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontWeight: 700, fontSize: 14 }}>「{title}」{locked ? '已鎖定' : '未採用'}</div>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 4, lineHeight: 1.5 }}>{r.message ?? (locked ? '已上傳並鎖定，不能再更改。' : '時數比目前記錄少，未採用。')}</div>
+      </div>
+    </div>
+  );
+}
+
 function Done({ results, onDone, onReset }: { results: { yesterday?: OneResult; today?: OneResult }; onDone: () => void; onReset: () => void }) {
   const list = [results.yesterday, results.today].filter(Boolean) as OneResult[];
   const anyOk = list.some((r) => r.status === 'PARSED');
@@ -215,10 +253,14 @@ function Done({ results, onDone, onReset }: { results: { yesterday?: OneResult; 
           <span className="center" style={{ width: 56, height: 56, borderRadius: '50%', margin: '0 auto 12px', background: anyOk ? 'var(--good-soft)' : 'var(--warn-soft)', color: anyOk ? 'var(--good-ink)' : 'var(--warn-ink)' }}>
             <Icon name={anyOk ? 'checkCircle' : 'alert'} size={30} sw={1.7} />
           </span>
-          <div style={{ fontWeight: 700, fontSize: 18 }}>{anyOk ? '讀到了！確認一下時數' : '這次沒讀成功'}</div>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>{anyOk ? '讀到了！確認一下時數' : '看一下結果'}</div>
           {anyFail && <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 6 }}>有截圖需要重傳</div>}
         </div>
-        {list.map((r) => (r.status === 'PARSED' ? <ParsedCard key={r.submissionId} r={r} /> : <FailCard key={r.submissionId} r={r} />))}
+        {list.map((r) =>
+          r.status === 'PARSED' ? <ParsedCard key={r.kind} r={r} />
+          : r.status === 'NEED_REUPLOAD' ? <FailCard key={r.kind} r={r} />
+          : <NoteCard key={r.kind} r={r} />,
+        )}
       </div>
       <div className="footerbar">
         <div style={{ display: 'flex', gap: 10 }}>

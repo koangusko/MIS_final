@@ -6,6 +6,8 @@ import { requireAuth } from './auth';
 import { env } from './env';
 import { DEFAULT_TRACKED_KEYS } from './catalog';
 import { announce } from './announce';
+import { memberUsage, normAppName } from './settlement';
+import { todayTaipei, taipeiDow, lastNDaysTaipei } from './time';
 import type { Cycle } from '@prisma/client';
 
 export const rooms = Router();
@@ -205,6 +207,44 @@ rooms.get('/catalog', requireAuth, async (_req, res) => {
     apps: apps.filter((a) => a.category === cat).map((a) => ({ key: a.key, name: a.name, glyph: a.glyph, color: a.color })),
   }));
   res.json({ groups });
+});
+
+// ── 各成員本期螢幕使用量（成員都看得到）──
+rooms.get('/rooms/:id/usage', requireAuth, async (req, res) => {
+  const me = uid(req);
+  const room = await prisma.room.findUnique({
+    where: { id: req.params.id },
+    include: { members: { include: { user: true }, orderBy: { joinedAt: 'asc' } }, trackedApps: { include: { app: true } } },
+  });
+  if (!room || !room.members.some((m) => m.userId === me)) {
+    res.status(room ? 403 : 404).json({ error: room ? 'not_a_member' : 'not_found' });
+    return;
+  }
+  const trackedNames = new Set(room.trackedApps.map((t) => normAppName(t.app.name)));
+  // 本期日期：每日=今天;每週=本週一到今天
+  let dates: string[];
+  if (room.cycle === 'WEEKLY') {
+    const daysSinceMon = (taipeiDow(todayTaipei()) + 6) % 7;
+    dates = lastNDaysTaipei(daysSinceMon + 1);
+  } else {
+    dates = [todayTaipei()];
+  }
+  const members = [];
+  for (let i = 0; i < room.members.length; i++) {
+    const m = room.members[i];
+    const used = await memberUsage(m.userId, trackedNames, dates);
+    members.push({
+      userId: m.userId,
+      name: m.user.name,
+      initial: m.user.name.slice(0, 1),
+      idx: i,
+      isMe: m.userId === me,
+      role: m.role,
+      used, // null = 本期尚未回報
+      reported: used != null,
+    });
+  }
+  res.json({ cap: room.totalCapMin, cycle: room.cycle, members });
 });
 
 // ── 設定追蹤清單（房主）──

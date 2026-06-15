@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../components/Icon';
-import { Phone, Avatar, AppIcon, Chip } from '../components/ui';
+import { Phone, Avatar, AppIcon, Bar, Chip } from '../components/ui';
 import { api } from '../lib/api';
 import { ApiError } from '../lib/api';
 import type { IconName } from '../lib/icons';
@@ -75,26 +75,56 @@ export default function RoomDetail() {
   );
 }
 
+type Usage = {
+  cap: number | null; cycle: 'DAILY' | 'WEEKLY';
+  members: { userId: string; name: string; initial: string; idx: number; isMe: boolean; role: 'OWNER' | 'MEMBER'; used: number | null; reported: boolean }[];
+};
+
 function Members({ room, isOwner, onInvite }: { room: Room; isOwner: boolean; onInvite: () => void }) {
+  const [u, setU] = useState<Usage | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const fetchUsage = () => api.get<Usage>(`/api/rooms/${room.id}/usage`).then((x) => alive && setU(x)).catch(() => {});
+    void fetchUsage();
+    const t = setInterval(() => void fetchUsage(), 15000);
+    return () => { alive = false; clearInterval(t); };
+  }, [room.id]);
+
+  const cap = u?.cap ?? null;
+  const list = u?.members ?? room.members.map((m) => ({ userId: m.id, name: m.name, initial: m.initial, idx: m.idx, isMe: m.isMe, role: m.role, used: null as number | null, reported: false }));
+
   return (
     <>
       <div className="between" style={{ margin: '4px 4px 10px' }}>
-        <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink-2)' }}>{room.members.length} 位成員</span>
+        <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink-2)' }}>
+          本{(u?.cycle ?? room.cycle) === 'WEEKLY' ? '週' : '日'} · {list.length} 位成員{cap != null ? ` · 上限 ${cap} 分` : ''}
+        </span>
         {isOwner && <button className="btn soft sm" style={{ padding: '7px 12px' }} onClick={onInvite}><Icon name="plus" size={15} sw={2} />邀請</button>}
       </div>
       <div className="card" style={{ padding: '6px 16px' }}>
-        {room.members.map((m) => (
-          <div className="lrow" key={m.id}>
-            <Avatar name={m.initial} idx={m.idx} size={42} ring={m.isMe ? 2 : 0} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 700, fontSize: 14.5 }}>{m.name}{m.isMe && '（你）'}</div>
+        {list.map((m) => {
+          const over = cap != null && m.reported && (m.used ?? 0) > cap;
+          return (
+            <div className="lrow" key={m.userId}>
+              <Avatar name={m.initial} idx={m.idx} size={42} ring={m.isMe ? 2 : 0} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="between">
+                  <span style={{ fontWeight: 700, fontSize: 14.5 }}>{m.name}{m.isMe && '（你）'}{m.role === 'OWNER' && ' · 房主'}</span>
+                  <span className="tnum" style={{ fontWeight: 700, fontSize: 14, color: over ? 'var(--warn-ink)' : 'var(--ink)' }}>{m.reported ? `${m.used} 分` : '未回報'}</span>
+                </div>
+                <div className="row" style={{ gap: 8, marginTop: 7 }}>
+                  <div style={{ flex: 1 }}><Bar pct={cap != null && m.reported ? ((m.used ?? 0) / cap) * 100 : 0} state={over ? 'over' : m.reported ? 'good' : ''} /></div>
+                  {cap != null && m.reported && (over ? <Chip kind="warn">超 {(m.used ?? 0) - cap} 分</Chip> : <Chip kind="good">達標</Chip>)}
+                </div>
+              </div>
             </div>
-            {m.role === 'OWNER' && <Chip kind="accent"><Icon name="crown" size={13} />房主</Chip>}
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div className="card flat" style={{ marginTop: 12, textAlign: 'center', padding: 14, fontSize: 12.5, color: 'var(--ink-2)' }}>
-        每日上傳截圖回報用量；按{room.cycle === 'WEEKLY' ? '週' : '日'}結算後會顯示各成員達標狀況。
+        {cap != null
+          ? `每天上傳「今天打卡」即時更新用量；按${(u?.cycle ?? room.cycle) === 'WEEKLY' ? '週' : '日'}結算正式判定達標。`
+          : '房主到「規則」設定總上限後，這裡會顯示各成員達標狀況。'}
       </div>
     </>
   );
@@ -213,7 +243,7 @@ function Chat({ roomId }: { roomId: string }) {
           ) : (
             <div key={m.id} className="row" style={{ gap: 9, alignItems: 'flex-end' }}>
               <Avatar name={m.initial ?? '?'} idx={hashIdx(m.name ?? '')} size={32} />
-              <div><div style={{ fontSize: 11, color: 'var(--ink-3)', margin: '0 0 3px 4px' }}>{m.name}</div><div className="bubble them">{m.body}</div></div>
+              <div style={{ minWidth: 0, maxWidth: '78%' }}><div style={{ fontSize: 11, color: 'var(--ink-3)', margin: '0 0 3px 4px' }}>{m.name}</div><div className="bubble them">{m.body}</div></div>
             </div>
           ),
         )}
