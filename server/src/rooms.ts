@@ -297,3 +297,102 @@ rooms.get('/rooms/:id/settlement', requireAuth, async (req, res) => {
     })),
   });
 });
+
+// ── 發起提案（成員）──
+rooms.post('/rooms/:id/proposals', requireAuth, async (req, res) => {
+  const me = uid(req);
+  const member = await prisma.roomMember.findUnique({ where: { roomId_userId: { roomId: req.params.id, userId: me } } });
+  if (!member) {
+    res.status(403).json({ error: 'not_a_member' });
+    return;
+  }
+  const { kind, newCapMin, newPenaltyText } = req.body ?? {};
+  let title: string;
+  const data: { kind: 'CHANGE_CAP' | 'CHANGE_PENALTY'; newCapMin?: number; newPenaltyText?: string } = { kind };
+  if (kind === 'CHANGE_CAP') {
+    if (typeof newCapMin !== 'number' || newCapMin <= 0) { res.status(400).json({ error: 'bad_cap' }); return; }
+    data.newCapMin = Math.round(newCapMin);
+    title = `合計上限改為 ${data.newCapMin} 分？`;
+  } else if (kind === 'CHANGE_PENALTY') {
+    if (typeof newPenaltyText !== 'string' || !newPenaltyText.trim()) { res.status(400).json({ error: 'bad_penalty' }); return; }
+    data.newPenaltyText = newPenaltyText.trim();
+    title = `超標懲罰改為「${data.newPenaltyText}」？`;
+  } else {
+    res.status(400).json({ error: 'bad_kind' });
+    return;
+  }
+  const p = await prisma.proposal.create({
+    data: { roomId: req.params.id, creatorId: me, kind: data.kind, title, newCapMin: data.newCapMin, newPenaltyText: data.newPenaltyText, closesAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) },
+  });
+  res.json({ id: p.id });
+});
+
+// ── 提案列表（成員）──
+rooms.get('/rooms/:id/proposals', requireAuth, async (req, res) => {
+  const me = uid(req);
+  const room = await prisma.room.findUnique({ where: { id: req.params.id }, include: { members: true } });
+  if (!room || !room.members.some((m) => m.userId === me)) {
+    res.status(room ? 403 : 404).json({ error: room ? 'not_a_member' : 'not_found' });
+    return;
+  }
+  const memberCount = room.members.length;
+  const need = Math.ceil(memberCount / 2);
+  const proposals = await prisma.proposal.findMany({
+    where: { roomId: room.id },
+    include: { votes: true, creator: true },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+  });
+  res.json({
+    memberCount,
+    need,
+    proposals: proposals.map((p) => {
+      const approve = p.votes.filter((v) => v.approve).length;
+      const reject = p.votes.filter((v) => !v.approve).length;
+      const mine = p.votes.find((v) => v.userId === me);
+      const expired = p.status === 'OPEN' && p.closesAt.getTime() < Date.now();
+      return {
+        id: p.id, kind: p.kind, title: p.title,
+        creator: p.creator.name,
+        approve, reject, need, memberCount,
+        myVote: mine ? (mine.approve ? 'approve' : 'reject') : null,
+        status: expired ? 'EXPIRED' : p.status,
+        closesAt: p.closesAt,
+      };
+    }),
+  });
+});
+
+// ── 投票（成員）；過半即通過並套用 ──
+rooms.post('/proposals/:pid/vote', requireAuth, async (req, res) => {
+  const me = uid(req);
+  const approve = !!req.body?.approve;
+  const proposal = await prisma.proposal.findUnique({ where: { id: req.params.pid }, include: { room: { include: { members: true } } } });
+  if (!proposal) { res.status(404).json({ error: 'not_found' }); return; }
+  if (!proposal.room.members.some((m) => m.userId === me)) { res.status(403).json({ error: 'not_a_member' }); return; }
+  if (proposal.status !== 'OPEN' || proposal.closesAt.getTime() < Date.now()) { res.status(409).json({ error: 'closed' }); return; }
+
+  await prisma.vote.upsert({
+    where: { proposalId_userId: { proposalId: proposal.id, userId: me } },
+    update: { approve },
+    create: { proposalId: proposal.id, userId: me, approve },
+  });
+
+  const votes = await prisma.vote.findMany({ where: { proposalId: proposal.id } });
+  const approveCount = votes.filter((v) => v.approve).length;
+  const need = Math.ceil(proposal.room.members.length / 2);
+  let passed = false;
+  if (approveCount >= need) {
+    passed = true;
+    await prisma.$transaction([
+      prisma.proposal.update({ where: { id: proposal.id }, data: { status: 'PASSED' } }),
+      prisma.room.update({
+        where: { id: proposal.roomId },
+        data: proposal.kind === 'CHANGE_CAP'
+          ? { totalCapMin: proposal.newCapMin }
+          : { penaltyText: proposal.newPenaltyText },
+      }),
+    ]);
+  }
+  res.json({ ok: true, approveCount, need, passed });
+});

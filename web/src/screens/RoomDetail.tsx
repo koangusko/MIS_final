@@ -65,7 +65,7 @@ export default function RoomDetail() {
       </div>
       <div className="wrap" style={{ padding: '4px 16px 22px' }}>
         {tab === 'member' && <Members room={room} isOwner={isOwner} onInvite={() => nav(`/rooms/${room.id}/invite`)} />}
-        {tab === 'rule' && <Rules room={room} isOwner={isOwner} onEditTracking={() => nav(`/rooms/${room.id}/tracking`)} onSettlement={() => nav(`/rooms/${room.id}/settlement`)} reload={load} />}
+        {tab === 'rule' && <Rules room={room} isOwner={isOwner} onEditTracking={() => nav(`/rooms/${room.id}/tracking`)} onSettlement={() => nav(`/rooms/${room.id}/settlement`)} onVote={() => nav(`/rooms/${room.id}/vote`)} reload={load} />}
         {tab === 'chat' && <Placeholder icon="room" title="房間聊天室即將推出" desc="成員聊天與系統公告會在 Phase 6 上線。" />}
       </div>
     </Phone>
@@ -97,8 +97,8 @@ function Members({ room, isOwner, onInvite }: { room: Room; isOwner: boolean; on
   );
 }
 
-function Rules({ room, isOwner, onEditTracking, onSettlement, reload }: {
-  room: Room; isOwner: boolean; onEditTracking: () => void; onSettlement: () => void; reload: () => Promise<void>;
+function Rules({ room, isOwner, onEditTracking, onSettlement, onVote, reload }: {
+  room: Room; isOwner: boolean; onEditTracking: () => void; onSettlement: () => void; onVote: () => void; reload: () => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
   const [cap, setCap] = useState(room.totalCapMin ? String(room.totalCapMin) : '');
@@ -175,7 +175,8 @@ function Rules({ room, isOwner, onEditTracking, onSettlement, reload }: {
         ))}
       </div>
 
-      <button className="btn soft" style={{ marginTop: 14 }} onClick={onSettlement}><Icon name="trophy" size={18} />看本期結算結果</button>
+      <button className="btn soft" style={{ marginTop: 14 }} onClick={onVote}><Icon name="chart" size={18} />規則與投票（改上限 / 改懲罰）</button>
+      <button className="btn ghost" style={{ marginTop: 10 }} onClick={onSettlement}><Icon name="trophy" size={18} />看本期結算結果</button>
       {isOwner && <button className="btn ghost" style={{ marginTop: 10 }} onClick={onEditTracking}><Icon name="edit" size={17} />編輯追蹤清單</button>}
     </>
   );

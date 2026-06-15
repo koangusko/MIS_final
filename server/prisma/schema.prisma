@@ -154,15 +154,17 @@ model Rule {
 }
 
 model Proposal {
-  id          String         @id @default(cuid())
-  roomId      String
-  creatorId   String
-  kind        ProposalKind
-  title       String
-  description String?
-  status      ProposalStatus @default(OPEN)
-  closesAt    DateTime
-  createdAt   DateTime       @default(now())
+  id             String         @id @default(cuid())
+  roomId         String
+  creatorId      String
+  kind           ProposalKind
+  title          String
+  description    String?
+  newCapMin      Int? // CHANGE_CAP：提議的新總上限
+  newPenaltyText String? // CHANGE_PENALTY：提議的新懲罰文字
+  status         ProposalStatus @default(OPEN)
+  closesAt       DateTime
+  createdAt      DateTime       @default(now())
 
   room    Room             @relation(fields: [roomId], references: [id], onDelete: Cascade)
   creator User             @relation("ProposalCreator", fields: [creatorId], references: [id])
@@ -182,13 +184,14 @@ model ProposalOption {
 model Vote {
   id         String   @id @default(cuid())
   proposalId String
-  optionId   String
+  optionId   String? // 保留給多選提案；贊成/反對投票不使用
   userId     String
+  approve    Boolean  @default(true) // 贊成 / 反對
   createdAt  DateTime @default(now())
 
-  proposal Proposal       @relation(fields: [proposalId], references: [id], onDelete: Cascade)
-  option   ProposalOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
-  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  proposal Proposal        @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  option   ProposalOption? @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([proposalId, userId])
 }
