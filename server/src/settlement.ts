@@ -70,7 +70,8 @@ export async function settleRoom(
 
   const passed = out.filter((m) => m.passed).length;
   const failed = out.length - passed;
-  const tail = failed > 0 ? `未達標：${failedNames.join('、')}。` : '全員達標！';
+  let tail = failed > 0 ? `未達標：${failedNames.join('、')}。` : '全員達標！';
+  if (failed > 0 && room.penaltyText) tail += `請去${room.penaltyText}`;
   await announce(roomId, `本期結算完成：${passed} 人達標、${failed} 人未達標。${tail}`);
   return out;
 }
